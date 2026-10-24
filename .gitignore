@@ -1,0 +1,28 @@
+# Gradle
+.gradle/
+build/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+.kotlin/
+local.properties
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+out/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+
+# Local screenshots from development (they show the developer's desktop)
+screenshots/
+
+# Never commit credentials or personal Gradle settings
+*.env
+gradle-user.properties
