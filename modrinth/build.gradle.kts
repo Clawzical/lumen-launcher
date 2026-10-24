@@ -7,4 +7,7 @@ kotlin { jvmToolchain(21) }
 
 dependencies {
     api(project(":core"))
+    testImplementation(kotlin("test"))
 }
+
+tasks.test { useJUnitPlatform() }

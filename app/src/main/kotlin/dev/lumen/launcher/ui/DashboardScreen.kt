@@ -76,7 +76,7 @@ fun DashboardScreen(state: AppState, instances: List<Instance>) {
                 phase = state.launchPhases[selected.id],
                 onPlay = { state.play(selected) },
                 onStop = { state.stop(selected) },
-                onManage = { state.screen = Screen.Instances },
+                onManage = { state.manage(selected) },
             )
         }
 

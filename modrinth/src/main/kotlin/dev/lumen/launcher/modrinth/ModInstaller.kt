@@ -5,22 +5,10 @@ import dev.lumen.launcher.core.download.DownloadTask
 import dev.lumen.launcher.core.instance.Instance
 import dev.lumen.launcher.core.instance.InstancePaths
 import dev.lumen.launcher.core.instance.ModLoader
-import dev.lumen.launcher.core.net.Http
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
-import kotlinx.serialization.Serializable
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.StandardCopyOption
 import java.time.Instant
-import kotlin.io.path.exists
-import kotlin.io.path.readText
-import kotlin.io.path.writeText
 
 data class ResolvedFile(val version: ModrinthVersion, val file: VersionFile, val requiredBy: String?)
 data class UnresolvedDependency(val requiredBy: String, val dependency: Dependency, val reason: String)
@@ -34,13 +22,6 @@ data class InstallPlan(
     val totalBytes: Long get() = files.sumOf { it.file.size }
 }
 
-/** Per-instance record of what we installed, so re-resolution skips what's already there. */
-@Serializable
-data class InstalledContent(val projectId: String, val versionId: String, val filename: String, val folder: String)
-
-@Serializable
-data class ContentIndex(val entries: Map<String, InstalledContent> = emptyMap())
-
 /**
  * Resolves the full required-dependency graph for a version, then downloads everything
  * in parallel through [DownloadManager]. Resolution is breadth-first and each BFS level is
@@ -49,9 +30,8 @@ data class ContentIndex(val entries: Map<String, InstalledContent> = emptyMap())
 class ModInstaller(
     private val api: ModrinthClient,
     private val downloads: DownloadManager,
+    private val index: ContentIndexStore = ContentIndexStore(),
 ) {
-    private val indexLock = Mutex()
-
     suspend fun installLatest(projectIdOrSlug: String, type: ProjectType, instance: Instance, paths: InstancePaths): InstallPlan {
         val loader = instance.loader.takeIf { type == ProjectType.MOD }
         val root = api.bestVersion(projectIdOrSlug, loader, instance.gameVersion)
@@ -61,8 +41,8 @@ class ModInstaller(
 
     suspend fun install(root: ModrinthVersion, type: ProjectType, instance: Instance, paths: InstancePaths): InstallPlan {
         require(type != ProjectType.MODPACK) { "Modpacks go through the .mrpack importer" }
-        val index = readIndex(paths)
-        val plan = resolve(root, instance.loader, instance.gameVersion, index.entries.keys)
+        val installed = index.read(paths)
+        val plan = resolve(root, instance.loader, instance.gameVersion, installed.entries.keys)
         val targetDir = paths.gameDir.resolve(type.folder)
 
         downloads.downloadAll(plan.files.map { r ->
@@ -75,18 +55,17 @@ class ModInstaller(
             )
         })
 
-        // Parallel installs into one instance would otherwise race read-modify-write on the index.
-        indexLock.withLock {
-            val fresh = readIndex(paths)
-            writeIndex(paths, fresh.copy(entries = fresh.entries + plan.files.associate { r ->
+        // The store serialises read-modify-write, so parallel installs can't drop each other's entries.
+        index.update(paths) { fresh ->
+            fresh.copy(entries = fresh.entries + plan.files.associate { r ->
                 r.version.projectId to InstalledContent(r.version.projectId, r.version.id, r.file.filename, type.folder)
-            }))
+            })
         }
         return plan
     }
 
     /** Modrinth project ids already installed in this instance (mods, resource packs and shaders). */
-    suspend fun installedProjectIds(paths: InstancePaths): Set<String> = readIndex(paths).entries.keys
+    suspend fun installedProjectIds(paths: InstancePaths): Set<String> = index.read(paths).entries.keys
 
     suspend fun resolve(
         root: ModrinthVersion,
@@ -149,19 +128,5 @@ class ModInstaller(
             publishedBy = runCatching { Instant.parse(parent.datePublished) }.getOrNull(),
         )
         else -> null
-    }
-
-    private fun indexFile(paths: InstancePaths): Path = paths.root.resolve("content-index.json")
-
-    private suspend fun readIndex(paths: InstancePaths): ContentIndex = withContext(Dispatchers.IO) {
-        val f = indexFile(paths)
-        if (f.exists()) Http.json.decodeFromString(ContentIndex.serializer(), f.readText()) else ContentIndex()
-    }
-
-    private suspend fun writeIndex(paths: InstancePaths, index: ContentIndex) = withContext(Dispatchers.IO) {
-        val f = indexFile(paths)
-        val tmp = f.resolveSibling("${f.fileName}.tmp")
-        tmp.writeText(Http.json.encodeToString(ContentIndex.serializer(), index))
-        Files.move(tmp, f, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
     }
 }

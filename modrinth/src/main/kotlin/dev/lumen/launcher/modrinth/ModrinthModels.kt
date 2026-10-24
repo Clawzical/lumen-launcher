@@ -70,6 +70,16 @@ data class SearchHit(
 )
 
 @Serializable
+data class ModrinthProject(
+    val id: String,
+    val slug: String,
+    val title: String,
+    val description: String = "",
+    @SerialName("icon_url") val iconUrl: String? = null,
+    @SerialName("project_type") val projectType: String = "mod",
+)
+
+@Serializable
 data class ModrinthVersion(
     val id: String,
     @SerialName("project_id") val projectId: String,

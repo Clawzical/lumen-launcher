@@ -6,10 +6,19 @@ import io.ktor.client.call.body
 import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.TextContent
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
 import java.time.Instant
 
 /**
@@ -58,6 +67,47 @@ class ModrinthClient(
         }
     }
 
+    /** Title/icon for many projects in one request (instance content lists). */
+    suspend fun getProjects(ids: Collection<String>): List<ModrinthProject> {
+        if (ids.isEmpty()) return emptyList()
+        return call { http.get("$baseUrl/projects") { parameter("ids", jsonArrayOf(*ids.toTypedArray())) }.body() }
+    }
+
+    /**
+     * Identifies files by SHA-1: which Modrinth version each one is. Used to recognise mods that were
+     * added by hand (or before Lumen kept an index) so they can be updated and swapped too.
+     */
+    suspend fun versionsByHashes(sha1s: Collection<String>): Map<String, ModrinthVersion> {
+        if (sha1s.isEmpty()) return emptyMap()
+        return call {
+            http.post("$baseUrl/version_files") {
+                setBody(json(buildJsonObject {
+                    putJsonArray("hashes") { sha1s.forEach { add(it) } }
+                    put("algorithm", "sha1")
+                }))
+            }.body()
+        }
+    }
+
+    /** Newest version compatible with the given loaders/game versions for each file hash, in one request. */
+    suspend fun latestVersionsByHashes(
+        sha1s: Collection<String>,
+        loaders: List<String>?,
+        gameVersions: List<String>?,
+    ): Map<String, ModrinthVersion> {
+        if (sha1s.isEmpty()) return emptyMap()
+        return call {
+            http.post("$baseUrl/version_files/update") {
+                setBody(json(buildJsonObject {
+                    putJsonArray("hashes") { sha1s.forEach { add(it) } }
+                    put("algorithm", "sha1")
+                    loaders?.let { l -> putJsonArray("loaders") { l.forEach { add(it) } } }
+                    gameVersions?.let { g -> putJsonArray("game_versions") { g.forEach { add(it) } } }
+                }))
+            }.body()
+        }
+    }
+
     /**
      * Prefer the newest stable release; fall back to beta, then alpha.
      * With [publishedBy], only versions released at or before that instant are considered (when any exist).
@@ -89,4 +139,7 @@ class ModrinthClient(
     }
 
     private fun jsonArrayOf(vararg values: String) = JsonArray(values.map(::JsonPrimitive)).toString()
+
+    /** Pre-serialized JSON body; bypasses ContentNegotiation so it isn't re-encoded as a string. */
+    private fun json(obj: JsonObject) = TextContent(obj.toString(), ContentType.Application.Json)
 }

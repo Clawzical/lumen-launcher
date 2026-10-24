@@ -117,9 +117,21 @@ Microsoft sign-in needs an Azure app registration that you own. Mojang must also
 
 Lumen maps Microsoft's and Xbox's error codes to plain-language messages. For example: unknown client ID (AADSTS700016), public client flows disabled, no Xbox profile, child account, region restrictions, and accounts that don't own the game.
 
+## Managing an instance's content
+
+Click an instance (or **Manage** on the dashboard) to see its mods, resource packs and shaders:
+
+- **Problems before you launch.** For Fabric and Quilt instances, Lumen reads each mod's `fabric.mod.json`, including mods bundled inside other mods, and runs the same dependency check Fabric does at startup. Wrong versions, missing dependencies, the wrong Minecraft version and declared incompatibilities each come with a one-click fix: switch to a version that fits, install the missing mod, or disable the offending one. Fixes that pick a version are double-checked against the downloaded jar's own version.
+- **Enable or disable** a file by renaming it to `.disabled`. **Remove** warns when another mod depends on the file.
+- **Updates.** One bulk Modrinth request checks every file by its hash. A stable install is only offered stable updates. An update is held back (with the reason) when another mod needs the current version, or when the new version pins a different version of something you have.
+- **Change version** lists every compatible version and marks the ones that would break another mod.
+- **Hand-added files** are recognised by hash and added to the instance's record, so they get names, icons and updates too.
+
+NeoForge instances get listing, updates and version changes, but no dependency check yet: NeoForge declares dependencies in `neoforge.mods.toml`, which Lumen doesn't read yet.
+
 ## Roadmap (suggested order)
 
-1. Instance detail view: list installed content, enable/disable it, remove it, and check for updates.
-2. `.mrpack` modpack import.
+1. `.mrpack` modpack import.
+2. NeoForge dependency checks (`neoforge.mods.toml`, Maven version ranges).
 3. `:curseforge`: same interfaces as `:modrinth`, behind a common `ContentSource` abstraction.
 4. Legacy versions (before 1.7.10): virtual/`map_to_resources` asset layouts, which aren't handled yet.

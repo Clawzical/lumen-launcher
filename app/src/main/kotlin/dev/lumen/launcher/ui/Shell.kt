@@ -56,6 +56,7 @@ import dev.lumen.launcher.Screen
 import dev.lumen.launcher.ui.account.AccountCard
 import dev.lumen.launcher.ui.account.SignInDialog
 import dev.lumen.launcher.ui.browser.ModBrowserScreen
+import dev.lumen.launcher.ui.instance.InstanceDetailScreen
 import dev.lumen.launcher.ui.window.ResizeHandles
 import dev.lumen.launcher.ui.window.TitleBar
 import dev.lumen.launcher.ui.window.WindowChrome
@@ -78,7 +79,14 @@ fun LauncherShell(state: AppState, chrome: WindowChrome, onClose: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
     TitleBar(chrome, SidebarWidth, onClose)
     Row(Modifier.weight(1f).fillMaxWidth()) {
-        Sidebar(current = state.screen, onSelect = { state.screen = it }, account = { AccountCard(state) })
+        Sidebar(
+            current = state.screen,
+            onSelect = {
+                state.screen = it
+                state.managingInstanceId = null // the sidebar always lands on a section's top level
+            },
+            account = { AccountCard(state) },
+        )
         Box(Modifier.width(1.dp).fillMaxHeight().background(MaterialTheme.colorScheme.outline))
 
         Box(Modifier.weight(1f).fillMaxHeight()) {
@@ -92,7 +100,14 @@ fun LauncherShell(state: AppState, chrome: WindowChrome, onClose: () -> Unit) {
             ) { screen ->
                 when (screen) {
                     Screen.Dashboard -> DashboardScreen(state, instances)
-                    Screen.Instances -> InstancesScreen(state, instances)
+                    Screen.Instances -> {
+                        val managed = state.managingInstanceId?.let { id -> instances.firstOrNull { it.id == id } }
+                        if (managed != null) {
+                            InstanceDetailScreen(state, managed, onBack = { state.managingInstanceId = null })
+                        } else {
+                            InstancesScreen(state, instances)
+                        }
+                    }
                     Screen.ModBrowser -> ModBrowserScreen(state, instances)
                     Screen.Settings -> PlaceholderScreen("Settings", "Java runtimes, memory defaults, GC profile, download threads.")
                 }

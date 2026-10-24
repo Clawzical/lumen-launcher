@@ -31,6 +31,7 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Grass
 import androidx.compose.material.icons.rounded.MoreVert
@@ -130,7 +131,7 @@ fun InstancesScreen(state: AppState, instances: List<Instance>) {
                     state = state,
                     instance = inst,
                     selected = inst.id == selectedId,
-                    onSelect = { state.selectedInstanceId = inst.id },
+                    onSelect = { state.manage(inst) }, // clicking a tile opens its content
                     onPlay = { state.play(inst) },
                     onRename = { renaming = inst },
                     onOpenFolder = { state.openFolder(inst) },
@@ -257,6 +258,11 @@ private fun InstanceTile(
                     Icon(Icons.Rounded.MoreVert, contentDescription = "More", tint = cs.onSurfaceVariant)
                 }
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Manage content") },
+                        leadingIcon = { Icon(Icons.Rounded.Extension, null) },
+                        onClick = { menuOpen = false; onSelect() },
+                    )
                     DropdownMenuItem(
                         text = { Text("Rename") },
                         leadingIcon = { Icon(Icons.Rounded.Edit, null) },

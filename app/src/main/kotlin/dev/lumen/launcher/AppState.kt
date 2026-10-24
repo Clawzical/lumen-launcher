@@ -28,7 +28,9 @@ import dev.lumen.launcher.launch.RunningGame
 import java.util.concurrent.ConcurrentHashMap
 import dev.lumen.launcher.core.version.VersionManifest
 import dev.lumen.launcher.core.version.VersionRepository
+import dev.lumen.launcher.modrinth.ContentIndexStore
 import dev.lumen.launcher.modrinth.ModInstaller
+import dev.lumen.launcher.modrinth.content.InstanceContentManager
 import dev.lumen.launcher.modrinth.ModrinthClient
 import dev.lumen.launcher.modrinth.ProjectType
 import dev.lumen.launcher.modrinth.SearchHit
@@ -84,7 +86,10 @@ class AppState(private val scope: CoroutineScope) : AutoCloseable {
     val instances = InstanceManager(paths)
     val downloads = DownloadManager(http, maxParallel = 16)
     val modrinth = ModrinthClient(http)
-    val installer = ModInstaller(modrinth, downloads)
+    // One index store for every writer, so installs, swaps and removals serialise per instance.
+    private val contentIndex = ContentIndexStore()
+    val installer = ModInstaller(modrinth, downloads, contentIndex)
+    val content = InstanceContentManager(modrinth, downloads, contentIndex, installer)
     private val versions = VersionRepository(http)
     private val gameInstaller = GameInstaller(http, paths, downloads, versions)
     private val gameLauncher = GameLauncher()
@@ -109,7 +114,21 @@ class AppState(private val scope: CoroutineScope) : AutoCloseable {
     var contentRevision by mutableIntStateOf(0)
         private set
 
+    /** Instance whose detail view (installed content) is open; null shows the instances grid. */
+    var managingInstanceId by mutableStateOf<String?>(null)
+
     fun selected(list: List<Instance>): Instance? = list.firstOrNull { it.id == selectedInstanceId } ?: list.firstOrNull()
+
+    fun manage(instance: Instance) {
+        selectedInstanceId = instance.id
+        managingInstanceId = instance.id
+        screen = Screen.Instances
+    }
+
+    /** Content changed outside the browser (toggle, swap, remove): refresh mod counts and memory estimates. */
+    fun contentChanged() {
+        contentRevision++
+    }
 
     suspend fun loadInstances() {
         scope.launch { runCatching { versionManifest = versions.manifest() } }
