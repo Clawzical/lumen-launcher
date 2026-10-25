@@ -9,6 +9,14 @@ A lightweight Minecraft launcher: Kotlin, Compose for Desktop, Ktor (CIO) and co
 ./gradlew :app:packageReleaseMsi      # ProGuard-shrunk native installer (Dmg / Deb on other OSes)
 ```
 
+On Windows, install Lumen as a normal app, with its own Java, desktop and Start menu shortcuts, and no admin rights needed:
+
+```bash
+powershell -ExecutionPolicy Bypass -File scripts/install-windows.ps1
+```
+
+It installs to `%LOCALAPPDATA%\Programs\Lumen`. Run it again to update; your instances and accounts in `%APPDATA%\Lumen` are kept.
+
 Requires JDK 21. If you fork Lumen, change the User-Agent in `AppState.kt` to your own name and contact; Modrinth asks every app to identify itself.
 
 ## Architecture

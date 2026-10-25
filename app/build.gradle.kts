@@ -37,8 +37,9 @@ compose.desktop {
             targetFormats(TargetFormat.Msi, TargetFormat.Dmg, TargetFormat.Deb)
             packageName = "Lumen"
             packageVersion = "1.0.0"
-            // jdk.management → OperatingSystemMXBean (total RAM detection for auto-allocation)
-            modules("java.net.http", "jdk.management", "jdk.crypto.ec")
+            // jdk.management → OperatingSystemMXBean (total RAM detection for auto-allocation);
+            // java.instrument + jdk.unsupported per `./gradlew :app:suggestRuntimeModules` (JNA, coroutines, Compose).
+            modules("java.net.http", "jdk.management", "jdk.crypto.ec", "java.instrument", "jdk.unsupported")
 
             // Generated from the logo geometry by `./gradlew :app:generateIcons`.
             windows {

@@ -74,13 +74,16 @@ class JavaRuntimes(
         }
     }
 
-    /** Reads `<home>/release`. Rejects jlink-trimmed runtimes (e.g. this launcher's own) that lack desktop modules. */
+    /**
+     * Reads `<home>/release`. Rejects jlink-trimmed runtimes, such as the one bundled inside the packaged
+     * Lumen app, which lack modules Minecraft or its loaders use (e.g. NeoForge needs jdk.zipfs).
+     */
     private fun runtimeAt(home: Path, expectedMajor: Int?): JavaRuntime? {
         val actualHome = listOf(home, home.resolve("jre.bundle/Contents/Home")).firstOrNull { it.resolve("release").exists() } ?: return null
         val release = runCatching { actualHome.resolve("release").readLines() }.getOrNull() ?: return null
         fun value(key: String) = release.firstOrNull { it.startsWith("$key=") }?.substringAfter('=')?.trim('"')
-        val modules = value("MODULES")
-        if (modules != null && ("java.desktop" !in modules || "jdk.unsupported" !in modules)) return null
+        val modules = value("MODULES")?.split(' ')?.toSet()
+        if (modules != null && !modules.containsAll(GAME_MODULES)) return null
         val major = expectedMajor ?: value("JAVA_VERSION")?.let(::parseMajor) ?: return null
         val exe = actualHome.resolve("bin").resolve(if (platform.osName == "windows") "javaw.exe" else "java")
         return if (exe.exists()) JavaRuntime(actualHome, exe, major) else null
@@ -122,6 +125,9 @@ class JavaRuntimes(
 
     companion object {
         private const val COMPLETE_MARKER = ".lumen-complete"
+        private val GAME_MODULES = setOf(
+            "java.desktop", "jdk.unsupported", "java.sql", "java.naming", "java.management", "jdk.zipfs",
+        )
         private const val ALL_RUNTIMES_URL =
             "https://launchermeta.mojang.com/v1/products/java-runtime/2ec0cc96c44e5a76b9c8b0c0bf9bb5c4f1d39b65/all.json"
 
