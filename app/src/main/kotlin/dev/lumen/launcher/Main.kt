@@ -1,6 +1,10 @@
 package dev.lumen.launcher
 
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import dev.lumen.launcher.ui.LocalLanguage
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -42,6 +46,11 @@ fun main() = application {
             window.minimumSize = MinWindowSize
             chrome.applyNativeFrame()
         }
-        LumenTheme { LauncherShell(state, chrome, onClose = close) }
+        val settings by state.settings.settings.collectAsState()
+        LumenTheme(settings.theme) {
+            CompositionLocalProvider(LocalLanguage provides settings.language) {
+                LauncherShell(state, chrome, onClose = close)
+            }
+        }
     }
 }

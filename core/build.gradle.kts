@@ -12,4 +12,8 @@ dependencies {
     api(libs.ktor.client.content.negotiation)
     api(libs.ktor.serialization.json)
     implementation(libs.ktor.client.cio)
+    testImplementation(kotlin("test"))
+    testImplementation(libs.kotlinx.coroutines.test)
 }
+
+tasks.test { useJUnitPlatform() }

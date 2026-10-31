@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import dev.lumen.launcher.AppState
 import dev.lumen.launcher.auth.AuthException
 import dev.lumen.launcher.auth.DeviceCode
+import dev.lumen.launcher.ui.tr
 import java.awt.Desktop
 import java.net.URI
 import kotlin.coroutines.cancellation.CancellationException
@@ -65,7 +66,7 @@ fun SignInDialog(state: AppState, onDismiss: () -> Unit) {
         ui = SignInUi.Requesting
         try {
             val account = state.accounts.signIn(onCode = { ui = SignInUi.Code(it) }, onStage = { ui = SignInUi.Working(it) })
-            state.status = "Signed in as ${account.name}"
+            state.status = state.t("Signed in as ${account.name}", "已登录为 ${account.name}")
             onDismiss()
         } catch (e: CancellationException) {
             throw e
@@ -73,17 +74,17 @@ fun SignInDialog(state: AppState, onDismiss: () -> Unit) {
             // Configuration problems won't fix themselves on retry.
             val retryable = e !is AuthException.NotConfigured && e !is AuthException.AppNotFound &&
                 e !is AuthException.PublicClientDisabled && e !is AuthException.AppNotApproved
-            ui = SignInUi.Failed(e.message ?: "Sign-in failed", retryable)
+            ui = SignInUi.Failed(e.message ?: state.t("Sign-in failed", "登录失败"), retryable)
         }
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Sign in with Microsoft") },
+        title = { Text(tr("Sign in with Microsoft", "使用微软账号登录")) },
         text = {
             Column(Modifier.widthIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 when (val s = ui) {
-                    SignInUi.Requesting -> Busy("Contacting Microsoft…")
+                    SignInUi.Requesting -> Busy(tr("Contacting Microsoft…", "正在连接微软…"))
                     is SignInUi.Code -> CodeSteps(s.code)
                     is SignInUi.Working -> Busy(s.stage + "…")
                     is SignInUi.Failed -> Text(s.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
@@ -93,10 +94,16 @@ fun SignInDialog(state: AppState, onDismiss: () -> Unit) {
                     Spacer(Modifier.width(6.dp))
                     val keychain = state.accounts.keychain
                     Text(
-                        "Lumen never sees your password. " + if (keychain.isAvailable) {
-                            "Only a sign-in refresh token is kept, in ${keychain.description}."
+                        tr("Lumen never sees your password. ", "Lumen 不会接触你的密码。") + if (keychain.isAvailable) {
+                            tr(
+                                "Only a sign-in refresh token is kept, in ${keychain.description}.",
+                                "仅会在 ${keychain.description} 中保存一个登录刷新令牌。",
+                            )
                         } else {
-                            "No system keychain was found, so you'll need to sign in again next time Lumen starts."
+                            tr(
+                                "No system keychain was found, so you'll need to sign in again next time Lumen starts.",
+                                "未找到系统钥匙串，下次启动 Lumen 时需要重新登录。",
+                            )
                         },
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -109,13 +116,13 @@ fun SignInDialog(state: AppState, onDismiss: () -> Unit) {
                 is SignInUi.Code -> Button(onClick = { openTrusted(s.code.verificationUri) }) {
                     Icon(Icons.AutoMirrored.Rounded.OpenInNew, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Open sign-in page")
+                    Text(tr("Open sign-in page", "打开登录页面"))
                 }
-                is SignInUi.Failed -> if (s.retryable) Button(onClick = { attempt++ }) { Text("Try again") }
+                is SignInUi.Failed -> if (s.retryable) Button(onClick = { attempt++ }) { Text(tr("Try again", "重试")) }
                 else -> Unit
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(tr("Cancel", "取消")) } },
     )
 }
 
@@ -125,8 +132,8 @@ private fun CodeSteps(code: DeviceCode) {
     var copied by remember(code.userCode) { mutableStateOf(false) }
     val host = runCatching { URI(code.verificationUri).host.removePrefix("www.") + URI(code.verificationUri).path }.getOrDefault(code.verificationUri)
 
-    Text("1. Open $host in your browser", style = MaterialTheme.typography.bodyMedium)
-    Text("2. Enter this code:", style = MaterialTheme.typography.bodyMedium)
+    Text(tr("1. Open $host in your browser", "1. 在浏览器中打开 $host"), style = MaterialTheme.typography.bodyMedium)
+    Text(tr("2. Enter this code:", "2. 输入以下代码："), style = MaterialTheme.typography.bodyMedium)
     Surface(color = MaterialTheme.colorScheme.surfaceContainerHighest, shape = MaterialTheme.shapes.medium) {
         Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 6.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -138,11 +145,11 @@ private fun CodeSteps(code: DeviceCode) {
                 modifier = Modifier.weight(1f),
             )
             IconButton(onClick = { clipboard.setText(AnnotatedString(code.userCode)); copied = true }) {
-                Icon(if (copied) Icons.Rounded.Check else Icons.Rounded.ContentCopy, if (copied) "Copied" else "Copy code")
+                Icon(if (copied) Icons.Rounded.Check else Icons.Rounded.ContentCopy, if (copied) tr("Copied", "已复制") else tr("Copy code", "复制代码"))
             }
         }
     }
-    Busy("Waiting for you to finish in the browser…")
+    Busy(tr("Waiting for you to finish in the browser…", "等待你在浏览器中完成登录…"))
 }
 
 @Composable

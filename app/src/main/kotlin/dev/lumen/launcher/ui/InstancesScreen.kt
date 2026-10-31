@@ -101,11 +101,18 @@ fun InstancesScreen(state: AppState, instances: List<Instance>) {
 
     Column(Modifier.fillMaxSize().padding(start = 32.dp, end = 32.dp, top = 32.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            ScreenHeader("Instances", "${instances.size} isolated ${if (instances.size == 1) "instance" else "instances"}", Modifier.weight(1f))
+            ScreenHeader(
+                tr("Instances", "实例"),
+                tr(
+                    "${instances.size} isolated ${if (instances.size == 1) "instance" else "instances"}",
+                    "${instances.size} 个独立实例",
+                ),
+                Modifier.weight(1f),
+            )
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
-                placeholder = { Text("Search") },
+                placeholder = { Text(tr("Search", "搜索")) },
                 leadingIcon = { Icon(Icons.Rounded.Search, null) },
                 singleLine = true,
                 shape = MaterialTheme.shapes.medium,
@@ -115,7 +122,7 @@ fun InstancesScreen(state: AppState, instances: List<Instance>) {
             Button(onClick = { creating = CreateRequest(null) }, shape = MaterialTheme.shapes.medium, modifier = Modifier.height(52.dp)) {
                 Icon(Icons.Rounded.Add, null)
                 Spacer(Modifier.width(6.dp))
-                Text("New instance")
+                Text(tr("New instance", "新建实例"))
             }
         }
         Spacer(Modifier.height(24.dp))
@@ -143,7 +150,7 @@ fun InstancesScreen(state: AppState, instances: List<Instance>) {
             if (searching) {
                 if (filtered.isEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
-                        Text("No instances match “$query”.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(tr("No instances match “$query”.", "没有与“$query”匹配的实例。"), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             } else {
@@ -152,9 +159,12 @@ fun InstancesScreen(state: AppState, instances: List<Instance>) {
                 }
                 item(key = "templates-header", span = { GridItemSpan(maxLineSpan) }) {
                     Column(Modifier.padding(top = 20.dp)) {
-                        Text("Start from a template", style = MaterialTheme.typography.titleMedium)
+                        Text(tr("Start from a template", "从模板开始"), style = MaterialTheme.typography.titleMedium)
                         Text(
-                            "Creates an instance and installs the mods with their dependencies from Modrinth.",
+                            tr(
+                                "Creates an instance and installs the mods with their dependencies from Modrinth.",
+                                "创建一个实例，并从 Modrinth 安装模组及其前置。",
+                            ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -187,15 +197,15 @@ fun InstancesScreen(state: AppState, instances: List<Instance>) {
     deleting?.let { inst ->
         AlertDialog(
             onDismissRequest = { deleting = null },
-            title = { Text("Delete ${inst.name}?") },
-            text = { Text("This permanently removes its mods, configs and worlds.") },
+            title = { Text(tr("Delete ${inst.name}?", "删除 ${inst.name}？")) },
+            text = { Text(tr("This permanently removes its mods, configs and worlds.", "这将永久删除它的模组、配置文件和存档。")) },
             confirmButton = {
                 Button(
                     onClick = { state.delete(inst); deleting = null },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                ) { Text("Delete") }
+                ) { Text(tr("Delete", "删除")) }
             },
-            dismissButton = { TextButton(onClick = { deleting = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { deleting = null }) { Text(tr("Cancel", "取消")) } },
         )
     }
 }
@@ -255,26 +265,26 @@ private fun InstanceTile(
             }
             Box {
                 IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Rounded.MoreVert, contentDescription = "More", tint = cs.onSurfaceVariant)
+                    Icon(Icons.Rounded.MoreVert, contentDescription = tr("More", "更多"), tint = cs.onSurfaceVariant)
                 }
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                     DropdownMenuItem(
-                        text = { Text("Manage content") },
+                        text = { Text(tr("Manage content", "管理内容")) },
                         leadingIcon = { Icon(Icons.Rounded.Extension, null) },
                         onClick = { menuOpen = false; onSelect() },
                     )
                     DropdownMenuItem(
-                        text = { Text("Rename") },
+                        text = { Text(tr("Rename", "重命名")) },
                         leadingIcon = { Icon(Icons.Rounded.Edit, null) },
                         onClick = { menuOpen = false; onRename() },
                     )
                     DropdownMenuItem(
-                        text = { Text("Open folder") },
+                        text = { Text(tr("Open folder", "打开文件夹")) },
                         leadingIcon = { Icon(Icons.Rounded.FolderOpen, null) },
                         onClick = { menuOpen = false; onOpenFolder() },
                     )
                     DropdownMenuItem(
-                        text = { Text("Delete", color = cs.error) },
+                        text = { Text(tr("Delete", "删除"), color = cs.error) },
                         leadingIcon = { Icon(Icons.Rounded.Delete, null, tint = cs.error) },
                         onClick = { menuOpen = false; onDelete() },
                     )
@@ -287,8 +297,8 @@ private fun InstanceTile(
                 when (phase) {
                     null -> timeAgo(instance.lastPlayedAt)
                     is LaunchPhase.Preparing -> phase.stage + (phase.fraction?.let { " · ${(it * 100).toInt()}%" } ?: "")
-                    LaunchPhase.Starting -> "Starting…"
-                    LaunchPhase.Running -> "Running"
+                    LaunchPhase.Starting -> tr("Starting…", "正在启动…")
+                    LaunchPhase.Running -> tr("Running", "运行中")
                 },
                 style = MaterialTheme.typography.labelSmall,
                 color = if (phase != null) cs.primary else cs.onSurfaceVariant,
@@ -307,12 +317,12 @@ private fun InstanceTile(
                     null -> {
                         Icon(Icons.Rounded.PlayArrow, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("Play", style = MaterialTheme.typography.labelLarge)
+                        Text(tr("Play", "启动"), style = MaterialTheme.typography.labelLarge)
                     }
                     LaunchPhase.Running -> {
                         Icon(Icons.Rounded.Stop, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("Stop", style = MaterialTheme.typography.labelLarge)
+                        Text(tr("Stop", "停止"), style = MaterialTheme.typography.labelLarge)
                     }
                     else -> CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
                 }
@@ -351,7 +361,7 @@ private fun NewInstanceTile(onClick: () -> Unit, modifier: Modifier = Modifier) 
     ) {
         Icon(Icons.Rounded.Add, null, tint = fg, modifier = Modifier.size(28.dp))
         Spacer(Modifier.height(6.dp))
-        Text("New instance", style = MaterialTheme.typography.labelLarge, color = fg)
+        Text(tr("New instance", "新建实例"), style = MaterialTheme.typography.labelLarge, color = fg)
     }
 }
 
@@ -386,12 +396,12 @@ private fun TemplateCard(template: InstanceTemplate, onClick: () -> Unit) {
                 contentAlignment = Alignment.Center,
             ) { Icon(icon, null, tint = cs.primary, modifier = Modifier.size(20.dp)) }
             Spacer(Modifier.width(10.dp))
-            Text(template.title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            Text(tr(template.title, template.titleZh), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             Tag(template.loader.displayName)
         }
-        Text(template.description, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+        Text(tr(template.description, template.descriptionZh), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
         if (template.mods.isNotEmpty()) Text(
-            "${template.mods.size} mods + dependencies",
+            tr("${template.mods.size} mods + dependencies", "${template.mods.size} 个模组 + 前置"),
             style = MaterialTheme.typography.labelSmall,
             color = cs.primary,
         )
@@ -417,12 +427,17 @@ private fun CreateInstanceDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (template != null) "New ${template.title} instance" else "New instance") },
+        title = {
+            Text(
+                if (template != null) tr("New ${template.title} instance", "新建${template.titleZh}实例")
+                else tr("New instance", "新建实例"),
+            )
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(name, { name = it }, label = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(name, { name = it }, label = { Text(tr("Name", "名称")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 VersionPicker(manifest, version, { version = it.trim() }, Modifier.fillMaxWidth())
-                Text("Loader", style = MaterialTheme.typography.labelLarge)
+                Text(tr("Loader", "加载器"), style = MaterialTheme.typography.labelLarge)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ModLoader.entries.forEach { l ->
                         FilterChip(
@@ -445,7 +460,10 @@ private fun CreateInstanceDialog(
                     }
                 }
                 Text(
-                    "Memory: ${formatHeap(heapPreview)} to start (auto). It grows as you add mods.",
+                    tr(
+                        "Memory: ${formatHeap(heapPreview)} to start (auto). It grows as you add mods.",
+                        "内存：初始 ${formatHeap(heapPreview)}（自动），会随模组增加而提高。",
+                    ),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -453,10 +471,10 @@ private fun CreateInstanceDialog(
         },
         confirmButton = {
             Button(onClick = { onCreate(name, version, loader) }, enabled = name.isNotBlank() && versionValid) {
-                Text(if (expectedMods > 0) "Create & install" else "Create")
+                Text(if (expectedMods > 0) tr("Create & install", "创建并安装") else tr("Create", "创建"))
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(tr("Cancel", "取消")) } },
     )
 }
 
@@ -465,9 +483,9 @@ private fun RenameDialog(instance: Instance, onDismiss: () -> Unit, onRename: (S
     var name by remember { mutableStateOf(instance.name) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Rename instance") },
+        title = { Text(tr("Rename instance", "重命名实例")) },
         text = { OutlinedTextField(name, { name = it }, singleLine = true, modifier = Modifier.fillMaxWidth()) },
-        confirmButton = { Button(onClick = { onRename(name) }, enabled = name.isNotBlank()) { Text("Save") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { Button(onClick = { onRename(name) }, enabled = name.isNotBlank()) { Text(tr("Save", "保存")) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(tr("Cancel", "取消")) } },
     )
 }

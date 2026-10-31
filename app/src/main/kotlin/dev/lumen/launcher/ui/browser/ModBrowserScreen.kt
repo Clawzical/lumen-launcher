@@ -82,26 +82,27 @@ import dev.lumen.launcher.ui.RemoteIcon
 import dev.lumen.launcher.ui.ScreenHeader
 import dev.lumen.launcher.ui.Tag
 import dev.lumen.launcher.ui.subtitleOf
+import dev.lumen.launcher.ui.tr
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private const val IRIS_PROJECT_ID = "YL57xq9U"
 
 private val ProjectType.label: String
-    get() = when (this) {
-        ProjectType.MOD -> "Mods"
-        ProjectType.RESOURCE_PACK -> "Resource packs"
-        ProjectType.SHADER -> "Shaders"
-        ProjectType.MODPACK -> "Modpacks"
+    @Composable get() = when (this) {
+        ProjectType.MOD -> tr("Mods", "模组")
+        ProjectType.RESOURCE_PACK -> tr("Resource packs", "资源包")
+        ProjectType.SHADER -> tr("Shaders", "光影包")
+        ProjectType.MODPACK -> tr("Modpacks", "整合包")
     }
 
 private val SortIndex.label: String
-    get() = when (this) {
-        SortIndex.RELEVANCE -> "Relevance"
-        SortIndex.DOWNLOADS -> "Downloads"
-        SortIndex.FOLLOWS -> "Follows"
-        SortIndex.NEWEST -> "Newest"
-        SortIndex.UPDATED -> "Recently updated"
+    @Composable get() = when (this) {
+        SortIndex.RELEVANCE -> tr("Relevance", "相关性")
+        SortIndex.DOWNLOADS -> tr("Downloads", "下载量")
+        SortIndex.FOLLOWS -> tr("Follows", "关注数")
+        SortIndex.NEWEST -> tr("Newest", "最新发布")
+        SortIndex.UPDATED -> tr("Recently updated", "最近更新")
     }
 
 @Composable
@@ -139,7 +140,11 @@ fun ModBrowserScreen(state: AppState, instances: List<Instance>) {
 
     Column(Modifier.fillMaxSize().padding(start = 32.dp, end = 32.dp, top = 32.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            ScreenHeader("Mod Browser", "Search Modrinth and install straight into an instance.", Modifier.weight(1f))
+            ScreenHeader(
+                tr("Mod Browser", "模组下载"),
+                tr("Search Modrinth and install straight into an instance.", "搜索 Modrinth，并直接安装到实例中。"),
+                Modifier.weight(1f),
+            )
             TargetPicker(instances, target, onPick = { model.targetInstanceId = it.id })
         }
         Spacer(Modifier.height(20.dp))
@@ -147,10 +152,10 @@ fun ModBrowserScreen(state: AppState, instances: List<Instance>) {
         OutlinedTextField(
             value = model.query,
             onValueChange = { model.query = it },
-            placeholder = { Text("Search ${model.type.label.lowercase()}…") },
+            placeholder = { Text(tr("Search ${model.type.label.lowercase()}…", "搜索${model.type.label}…")) },
             leadingIcon = { Icon(Icons.Rounded.Search, null) },
             trailingIcon = {
-                if (model.query.isNotEmpty()) IconButton(onClick = { model.query = "" }) { Icon(Icons.Rounded.Close, "Clear") }
+                if (model.query.isNotEmpty()) IconButton(onClick = { model.query = "" }) { Icon(Icons.Rounded.Close, tr("Clear", "清除")) }
             },
             singleLine = true,
             shape = MaterialTheme.shapes.medium,
@@ -167,8 +172,11 @@ fun ModBrowserScreen(state: AppState, instances: List<Instance>) {
         Row(Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 buildString {
-                    append(if (model.loadedKey == null) "Searching…" else "${compact(model.totalHits.toLong())} results")
-                    if (key.gameVersion != null) append(" for ${key.gameVersion}")
+                    append(
+                        if (model.loadedKey == null) tr("Searching…", "正在搜索…")
+                        else tr("${compact(model.totalHits.toLong())} results", "${compact(model.totalHits.toLong())} 个结果"),
+                    )
+                    if (key.gameVersion != null) append(tr(" for ${key.gameVersion}", " · 适用于 ${key.gameVersion}"))
                     if (key.loader != null) append(" · ${key.loader.displayName}")
                 },
                 style = MaterialTheme.typography.labelMedium,
@@ -183,16 +191,16 @@ fun ModBrowserScreen(state: AppState, instances: List<Instance>) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
                 model.results.isEmpty() && model.error != null -> CenteredMessage(
-                    title = "Couldn't reach Modrinth",
+                    title = tr("Couldn't reach Modrinth", "无法连接到 Modrinth"),
                     body = model.error!!,
-                    action = "Retry" to { scope.launch { model.search(state.modrinth, key) } },
+                    action = tr("Retry", "重试") to { scope.launch { model.search(state.modrinth, key) } },
                 )
                 model.results.isEmpty() && (model.loading || model.loadedKey != key) -> SkeletonList()
                 model.results.isEmpty() -> CenteredMessage(
-                    title = "No results",
+                    title = tr("No results", "没有结果"),
                     body = if (model.compatibleOnly || model.categories.isNotEmpty()) {
-                        "Try clearing categories or turning off “Compatible only”."
-                    } else "Try a different search.",
+                        tr("Try clearing categories or turning off “Compatible only”.", "试试清除分类，或关闭“仅显示兼容”。")
+                    } else tr("Try a different search.", "换个关键词试试。"),
                     action = null,
                 )
                 else -> LazyColumn(
@@ -216,7 +224,7 @@ fun ModBrowserScreen(state: AppState, instances: List<Instance>) {
                             when {
                                 model.loading -> CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                                 !model.canLoadMore -> Text(
-                                    "End of results",
+                                    tr("End of results", "已经到底了"),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -246,11 +254,11 @@ private fun TargetPicker(instances: List<Instance>, target: Instance?, onPick: (
                     InstanceAvatar(target, 32.dp)
                     Spacer(Modifier.width(10.dp))
                     Column {
-                        Text("Installing into", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(tr("Installing into", "安装到"), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text("${target.name} · ${subtitleOf(target)}", style = MaterialTheme.typography.labelLarge, maxLines = 1)
                     }
                 } else {
-                    Text("Create an instance first", style = MaterialTheme.typography.labelLarge)
+                    Text(tr("Create an instance first", "请先创建实例"), style = MaterialTheme.typography.labelLarge)
                 }
                 Spacer(Modifier.width(6.dp))
                 Icon(Icons.Rounded.ArrowDropDown, null)
@@ -293,7 +301,7 @@ private fun FilterBar(model: ModBrowserModel, target: Instance?) {
         if (target != null) {
             Switch(checked = model.compatibleOnly, onCheckedChange = { model.compatibleOnly = it }, modifier = Modifier.scale(0.75f))
             Text(
-                "Compatible only",
+                tr("Compatible only", "仅显示兼容"),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -346,13 +354,19 @@ private fun CategoryRow(model: ModBrowserModel) {
 @Composable
 private fun Notice(type: ProjectType, target: Instance?, installed: Set<String>) {
     val text = when {
-        target == null -> "Create an instance to install content into."
-        type == ProjectType.MOD && target.loader == ModLoader.VANILLA ->
-            "${target.name} is a vanilla instance, which can't load mods. Pick a Fabric, Quilt or NeoForge instance."
-        type == ProjectType.SHADER && target.loader == ModLoader.VANILLA ->
-            "Shaders need a mod loader with Iris. Pick a Fabric, Quilt or NeoForge instance."
-        type == ProjectType.SHADER && IRIS_PROJECT_ID !in installed ->
-            "Shaders need Iris. Install it from Mods first (search “Iris”)."
+        target == null -> tr("Create an instance to install content into.", "请先创建一个实例，才能安装内容。")
+        type == ProjectType.MOD && target.loader == ModLoader.VANILLA -> tr(
+            "${target.name} is a vanilla instance, which can't load mods. Pick a Fabric, Quilt or NeoForge instance.",
+            "${target.name} 是原版实例，无法加载模组。请选择 Fabric、Quilt 或 NeoForge 实例。",
+        )
+        type == ProjectType.SHADER && target.loader == ModLoader.VANILLA -> tr(
+            "Shaders need a mod loader with Iris. Pick a Fabric, Quilt or NeoForge instance.",
+            "光影包需要安装了 Iris 的模组加载器。请选择 Fabric、Quilt 或 NeoForge 实例。",
+        )
+        type == ProjectType.SHADER && IRIS_PROJECT_ID !in installed -> tr(
+            "Shaders need Iris. Install it from Mods first (search “Iris”).",
+            "光影包需要 Iris。请先在“模组”中安装它（搜索“Iris”）。",
+        )
         else -> null
     } ?: return
 
@@ -403,7 +417,7 @@ private fun ResultCard(
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(hit.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 Spacer(Modifier.width(6.dp))
-                Text("by ${hit.author}", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, maxLines = 1)
+                Text(tr("by ${hit.author}", "作者 ${hit.author}"), style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, maxLines = 1)
             }
             Text(hit.description, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -429,29 +443,29 @@ private fun InstallButton(installState: InstallState, target: Instance?, retry: 
         InstallState.Installed -> Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.Check, null, Modifier.size(18.dp), tint = cs.primary)
             Spacer(Modifier.width(6.dp))
-            Text("Installed", style = MaterialTheme.typography.labelLarge, color = cs.primary)
+            Text(tr("Installed", "已安装"), style = MaterialTheme.typography.labelLarge, color = cs.primary)
         }
         InstallState.Installing -> FilledTonalButton(onClick = {}, enabled = false, shape = MaterialTheme.shapes.small) {
             CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
             Spacer(Modifier.width(8.dp))
-            Text("Installing")
+            Text(tr("Installing", "安装中"))
         }
         InstallState.Incompatible -> Text(
             when {
-                target == null -> "No instance"
-                target.loader == ModLoader.VANILLA -> "Needs a loader"
-                else -> "Not for ${target.gameVersion}"
+                target == null -> tr("No instance", "无实例")
+                target.loader == ModLoader.VANILLA -> tr("Needs a loader", "需要加载器")
+                else -> tr("Not for ${target.gameVersion}", "不支持 ${target.gameVersion}")
             },
             style = MaterialTheme.typography.labelMedium,
             color = cs.onSurfaceVariant,
         )
         InstallState.Available -> if (retry) {
-            OutlinedButton(onClick = onInstall, shape = MaterialTheme.shapes.small) { Text("Retry") }
+            OutlinedButton(onClick = onInstall, shape = MaterialTheme.shapes.small) { Text(tr("Retry", "重试")) }
         } else {
             Button(onClick = onInstall, shape = MaterialTheme.shapes.small, modifier = Modifier.pointerHoverIcon(PointerIcon.Hand)) {
                 Icon(Icons.Rounded.Download, null, Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Install")
+                Text(tr("Install", "安装"))
             }
         }
     }
@@ -521,8 +535,47 @@ private fun accentChipBorder(selected: Boolean) = FilterChipDefaults.filterChipB
     selectedBorderWidth = 1.dp,
 )
 
-private fun prettyCategory(id: String): String =
-    id.split('-').joinToString(" ") { it.replaceFirstChar(Char::uppercase) }
+/** Chinese names for the Modrinth category ids we offer as filters; anything else falls back to the English name. */
+private val categoryZh = mapOf(
+    "optimization" to "优化",
+    "utility" to "实用",
+    "library" to "前置库",
+    "technology" to "科技",
+    "adventure" to "冒险",
+    "magic" to "魔法",
+    "worldgen" to "世界生成",
+    "decoration" to "装饰",
+    "storage" to "存储",
+    "mobs" to "生物",
+    "vanilla-like" to "原版风",
+    "simplistic" to "简约",
+    "realistic" to "写实",
+    "semi-realistic" to "半写实",
+    "themed" to "主题",
+    "gui" to "界面",
+    "fantasy" to "奇幻",
+    "cartoon" to "卡通",
+    "potato" to "低配",
+    "high" to "高配",
+    "medium" to "中配",
+    "low" to "低配",
+    "food" to "食物",
+    "equipment" to "装备",
+    "transportation" to "交通",
+    "game-mechanics" to "游戏机制",
+    "management" to "管理",
+    "social" to "社交",
+    "economy" to "经济",
+    "minigame" to "小游戏",
+    "cursed" to "整活",
+    "combat" to "战斗",
+)
+
+@Composable
+private fun prettyCategory(id: String): String {
+    val en = id.split('-').joinToString(" ") { it.replaceFirstChar(Char::uppercase) }
+    return tr(en, categoryZh[id] ?: en)
+}
 
 private fun compact(n: Long): String = when {
     n >= 1_000_000 -> "%.1fM".format(n / 1_000_000.0).replace(".0M", "M")

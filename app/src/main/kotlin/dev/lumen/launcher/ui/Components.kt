@@ -85,17 +85,20 @@ fun DownloadsPanel(items: List<DownloadProgress>, modifier: Modifier = Modifier)
     ) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Downloads", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                Text(tr("Downloads", "下载"), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                 if (items.isNotEmpty()) {
                     Text(
-                        "${items.size} active · ${formatSpeed(items.sumOf { it.bytesPerSecond })}",
+                        tr(
+                            "${items.size} active · ${formatSpeed(items.sumOf { it.bytesPerSecond })}",
+                            "${items.size} 个进行中 · ${formatSpeed(items.sumOf { it.bytesPerSecond })}",
+                        ),
                         style = MaterialTheme.typography.labelMedium,
                         color = cs.primary,
                     )
                 }
             }
             if (items.isEmpty()) {
-                Text("Nothing downloading.", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+                Text(tr("Nothing downloading.", "当前没有下载任务。"), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
             }
             items.sortedBy { it.label }.forEach { DownloadRow(it) }
         }
@@ -137,7 +140,8 @@ fun PlaceholderScreen(title: String, description: String) {
 }
 
 data class MemoryEstimate(val modCount: Int, val heapMb: Int, val auto: Boolean) {
-    val label: String get() = "${if (auto) "Auto" else "Fixed"} · ${formatHeap(heapMb)}"
+    val label: String
+        @Composable get() = "${if (auto) tr("Auto", "自动") else tr("Fixed", "固定")} · ${formatHeap(heapMb)}"
 }
 
 /**
@@ -160,10 +164,11 @@ fun rememberMemoryEstimate(state: AppState, instance: Instance): MemoryEstimate 
 
 fun formatHeap(mb: Int): String = if (mb % 1024 == 0) "${mb / 1024} GB" else "%.1f GB".format(mb / 1024.0)
 
+@Composable
 fun modCountLabel(count: Int): String = when (count) {
-    0 -> "No mods"
-    1 -> "1 mod"
-    else -> "$count mods"
+    0 -> tr("No mods", "无模组")
+    1 -> tr("1 mod", "1 个模组")
+    else -> tr("$count mods", "$count 个模组")
 }
 
 fun formatBytes(bytes: Long): String = when {
@@ -175,13 +180,14 @@ fun formatBytes(bytes: Long): String = when {
 
 fun formatSpeed(bytesPerSecond: Long): String = "${formatBytes(bytesPerSecond)}/s"
 
+@Composable
 fun timeAgo(epochMs: Long?): String {
-    if (epochMs == null) return "Never played"
+    if (epochMs == null) return tr("Never played", "从未游玩")
     val minutes = (System.currentTimeMillis() - epochMs) / 60_000
     return when {
-        minutes < 1 -> "Played just now"
-        minutes < 60 -> "Played ${minutes}m ago"
-        minutes < 60 * 24 -> "Played ${minutes / 60}h ago"
-        else -> "Played ${minutes / (60 * 24)}d ago"
+        minutes < 1 -> tr("Played just now", "刚刚游玩")
+        minutes < 60 -> tr("Played ${minutes}m ago", "${minutes} 分钟前游玩")
+        minutes < 60 * 24 -> tr("Played ${minutes / 60}h ago", "${minutes / 60} 小时前游玩")
+        else -> tr("Played ${minutes / (60 * 24)}d ago", "${minutes / (60 * 24)} 天前游玩")
     }
 }

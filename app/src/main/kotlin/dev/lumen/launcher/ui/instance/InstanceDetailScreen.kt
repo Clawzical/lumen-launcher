@@ -78,14 +78,15 @@ import dev.lumen.launcher.modrinth.content.UpdateInfo
 import dev.lumen.launcher.ui.InstanceAvatar
 import dev.lumen.launcher.ui.RemoteIcon
 import dev.lumen.launcher.ui.Tag
+import dev.lumen.launcher.ui.tr
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 
 private val ContentKind.label: String
-    get() = when (this) {
-        ContentKind.MOD -> "Mods"
-        ContentKind.RESOURCE_PACK -> "Resource packs"
-        ContentKind.SHADER -> "Shaders"
+    @Composable get() = when (this) {
+        ContentKind.MOD -> tr("Mods", "模组")
+        ContentKind.RESOURCE_PACK -> tr("Resource packs", "资源包")
+        ContentKind.SHADER -> tr("Shaders", "光影包")
     }
 
 /** Installed content of one instance: problems with fixes, enable/disable, updates, version swaps, removal. */
@@ -124,7 +125,8 @@ fun InstanceDetailScreen(state: AppState, instance: Instance, onBack: () -> Unit
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                state.status = "$what failed: ${e.message?.lineSequence()?.firstOrNull()?.take(110) ?: e::class.simpleName}"
+                val reason = e.message?.lineSequence()?.firstOrNull()?.take(110) ?: e::class.simpleName
+                state.status = state.t("$what failed: $reason", "${what}失败：$reason")
                 reload++
             } finally {
                 busy = busy - key
@@ -141,7 +143,8 @@ fun InstanceDetailScreen(state: AppState, instance: Instance, onBack: () -> Unit
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                state.status = "Couldn't check for updates: ${e.message?.lineSequence()?.firstOrNull()?.take(100)}"
+                val reason = e.message?.lineSequence()?.firstOrNull()?.take(100)
+                state.status = state.t("Couldn't check for updates: $reason", "检查更新失败：$reason")
             } finally {
                 checking = false
             }
@@ -154,7 +157,7 @@ fun InstanceDetailScreen(state: AppState, instance: Instance, onBack: () -> Unit
 
         if (issues.isNotEmpty()) {
             IssuesCard(instance, issues, busy) { issue ->
-                act("issue:$issue", "Fix") { state.content.fix(instance, paths, all, issue) }
+                act("issue:$issue", state.t("Fix", "修复")) { state.content.fix(instance, paths, all, issue) }
             }
             Spacer(Modifier.height(14.dp))
         }
@@ -178,22 +181,22 @@ fun InstanceDetailScreen(state: AppState, instance: Instance, onBack: () -> Unit
             if (checking) {
                 CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
                 Spacer(Modifier.width(8.dp))
-                Text("Checking Modrinth…", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
+                Text(tr("Checking Modrinth…", "正在检查 Modrinth…"), style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
             } else {
                 if (checked && updates.isEmpty()) {
-                    Text("Everything is up to date", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
+                    Text(tr("Everything is up to date", "全部已是最新"), style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
                     Spacer(Modifier.width(8.dp))
                 }
                 TextButton(onClick = ::checkUpdates, enabled = all.any { it.projectId != null }) {
                     Icon(Icons.Rounded.Refresh, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Check for updates")
+                    Text(tr("Check for updates", "检查更新"))
                 }
             }
             if (ready.isNotEmpty() && !checking) {
                 Spacer(Modifier.width(8.dp))
                 Button(onClick = {
-                    act("update-all", "Update") {
+                    act("update-all", state.t("Update", "更新")) {
                         var done = 0
                         for ((key, info) in ready) {
                             val item = all.firstOrNull { it.key == key } ?: continue
@@ -201,9 +204,12 @@ fun InstanceDetailScreen(state: AppState, instance: Instance, onBack: () -> Unit
                             done++
                         }
                         updates = updates.filterValues { it.heldBack != null }
-                        "Updated $done ${if (done == 1) "item" else "items"} in ${instance.name}"
+                        state.t(
+                            "Updated $done ${if (done == 1) "item" else "items"} in ${instance.name}",
+                            "已更新 ${instance.name} 中的 $done 项内容",
+                        )
                     }
-                }, enabled = "update-all" !in busy) { Text("Update all (${ready.size})") }
+                }, enabled = "update-all" !in busy) { Text(tr("Update all (${ready.size})", "全部更新（${ready.size}）")) }
             }
         }
         Spacer(Modifier.height(10.dp))
@@ -213,9 +219,9 @@ fun InstanceDetailScreen(state: AppState, instance: Instance, onBack: () -> Unit
             items == null && loadError == null -> Row(Modifier.padding(top = 24.dp), verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                 Spacer(Modifier.width(10.dp))
-                Text("Reading ${instance.name}…", color = cs.onSurfaceVariant)
+                Text(tr("Reading ${instance.name}…", "正在读取 ${instance.name}…"), color = cs.onSurfaceVariant)
             }
-            loadError != null -> Text("Couldn't read this instance's files: $loadError", color = cs.error)
+            loadError != null -> Text(tr("Couldn't read this instance's files: $loadError", "无法读取该实例的文件：$loadError"), color = cs.error)
             shown.isEmpty() -> EmptyTab(tab, instance) {
                 state.browser.targetInstanceId = instance.id
                 state.browser.selectType(tab.projectType)
@@ -229,16 +235,19 @@ fun InstanceDetailScreen(state: AppState, instance: Instance, onBack: () -> Unit
                         update = updates[item.key],
                         busy = item.key in busy,
                         onToggle = { on ->
-                            act(item.key, if (on) "Enable" else "Disable") {
+                            act(item.key, if (on) state.t("Enable", "启用") else state.t("Disable", "禁用")) {
                                 state.content.setEnabled(paths, item, on)
                                 null
                             }
                         },
                         onUpdate = { info ->
-                            act(item.key, "Update") {
+                            act(item.key, state.t("Update", "更新")) {
                                 state.content.swap(paths, item, info.version)
                                 updates = updates - item.key
-                                "Updated ${item.title} to ${info.version.versionNumber}"
+                                state.t(
+                                    "Updated ${item.title} to ${info.version.versionNumber}",
+                                    "已将 ${item.title} 更新到 ${info.version.versionNumber}",
+                                )
                             }
                         },
                         onChangeVersion = { changing = item },
@@ -252,20 +261,20 @@ fun InstanceDetailScreen(state: AppState, instance: Instance, onBack: () -> Unit
     removing?.let { item ->
         RemoveDialog(item, all, onDismiss = { removing = null }) {
             removing = null
-            act(item.key, "Remove") {
+            act(item.key, state.t("Remove", "移除")) {
                 state.content.remove(paths, item)
                 updates = updates - item.key
-                "Removed ${item.title}"
+                state.t("Removed ${item.title}", "已移除 ${item.title}")
             }
         }
     }
     changing?.let { item ->
         ChangeVersionDialog(state, instance, item, all, onDismiss = { changing = null }) { version ->
             changing = null
-            act(item.key, "Change version") {
+            act(item.key, state.t("Change version", "切换版本")) {
                 state.content.swap(paths, item, version)
                 updates = updates - item.key
-                "Switched ${item.title} to ${version.versionNumber}"
+                state.t("Switched ${item.title} to ${version.versionNumber}", "已将 ${item.title} 切换到 ${version.versionNumber}")
             }
         }
     }
@@ -277,7 +286,7 @@ private fun Header(state: AppState, instance: Instance, items: List<ContentItem>
     val phase = state.launchPhases[instance.id]
     val mods = items.count { it.kind == ContentKind.MOD && it.enabled }
     Row(verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back to instances") }
+        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, tr("Back to instances", "返回实例列表")) }
         Spacer(Modifier.width(4.dp))
         InstanceAvatar(instance, 48.dp)
         Spacer(Modifier.width(14.dp))
@@ -287,7 +296,7 @@ private fun Header(state: AppState, instance: Instance, items: List<ContentItem>
                 buildString {
                     append(instance.gameVersion).append(" · ").append(instance.loader.displayName)
                     instance.loaderVersion?.let { append(" ").append(it) }
-                    if (instance.loader != ModLoader.VANILLA) append(" · ").append(if (mods == 1) "1 mod enabled" else "$mods mods enabled")
+                    if (instance.loader != ModLoader.VANILLA) append(" · ").append(tr(if (mods == 1) "1 mod enabled" else "$mods mods enabled", "已启用 $mods 个模组"))
                 },
                 style = MaterialTheme.typography.labelMedium,
                 color = cs.onSurfaceVariant,
@@ -296,7 +305,7 @@ private fun Header(state: AppState, instance: Instance, items: List<ContentItem>
         OutlinedButton(onClick = { state.openFolder(instance) }, shape = MaterialTheme.shapes.medium) {
             Icon(Icons.Rounded.FolderOpen, null, Modifier.size(18.dp))
             Spacer(Modifier.width(6.dp))
-            Text("Open folder")
+            Text(tr("Open folder", "打开文件夹"))
         }
         Spacer(Modifier.width(10.dp))
         val running = phase == LaunchPhase.Running
@@ -309,17 +318,17 @@ private fun Header(state: AppState, instance: Instance, items: List<ContentItem>
                 phase == null -> {
                     Icon(Icons.Rounded.PlayArrow, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Play")
+                    Text(tr("Play", "启动"))
                 }
                 running -> {
                     Icon(Icons.Rounded.Stop, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Stop")
+                    Text(tr("Stop", "停止"))
                 }
                 else -> {
                     CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
                     Spacer(Modifier.width(8.dp))
-                    Text("Starting")
+                    Text(tr("Starting", "启动中"))
                 }
             }
         }
@@ -341,7 +350,10 @@ private fun IssuesCard(instance: Instance, issues: List<CompatIssue>, busy: Set<
             Icon(Icons.Rounded.Warning, null, Modifier.size(18.dp), tint = cs.error)
             Spacer(Modifier.width(8.dp))
             Text(
-                "${if (issues.size == 1) "1 problem" else "${issues.size} problems"} will stop ${instance.name} from starting",
+                tr(
+                    "${if (issues.size == 1) "1 problem" else "${issues.size} problems"} will stop ${instance.name} from starting",
+                    "${issues.size} 个问题会导致 ${instance.name} 无法启动",
+                ),
                 style = MaterialTheme.typography.titleSmall,
             )
         }
@@ -359,17 +371,33 @@ private fun IssuesCard(instance: Instance, issues: List<CompatIssue>, busy: Set<
     }
 }
 
+/** [FabricVersions.describe], with the "any version" / "or" wording localized. */
+@Composable
+private fun describeVersions(alternatives: List<String>): String =
+    if (alternatives.isEmpty() || alternatives == listOf("*")) tr("any version", "任意版本")
+    else alternatives.joinToString(tr(" or ", " 或 "))
+
+@Composable
 private fun CompatIssue.describe(): String = when (this) {
-    is CompatIssue.WrongVersion -> "$modName needs $depName ${FabricVersions.describe(alternatives)}, but $installed is installed."
-    is CompatIssue.Missing -> "$modName needs $depId ${FabricVersions.describe(alternatives)}, which isn't installed."
-    is CompatIssue.WrongGame -> "$modName is made for Minecraft ${FabricVersions.describe(alternatives)}, not $gameVersion."
-    is CompatIssue.Breaks -> "$modName doesn't work with $otherName ${FabricVersions.describe(alternatives)}."
+    is CompatIssue.WrongVersion -> describeVersions(alternatives).let { v ->
+        tr("$modName needs $depName $v, but $installed is installed.", "$modName 需要 $depName $v，但当前安装的是 $installed。")
+    }
+    is CompatIssue.Missing -> describeVersions(alternatives).let { v ->
+        tr("$modName needs $depId $v, which isn't installed.", "$modName 需要前置 $depId $v，但尚未安装。")
+    }
+    is CompatIssue.WrongGame -> describeVersions(alternatives).let { v ->
+        tr("$modName is made for Minecraft $v, not $gameVersion.", "$modName 适用于 Minecraft $v，而不是 $gameVersion。")
+    }
+    is CompatIssue.Breaks -> describeVersions(alternatives).let { v ->
+        tr("$modName doesn't work with $otherName $v.", "$modName 与 $otherName $v 不兼容。")
+    }
 }
 
+@Composable
 private fun CompatIssue.fixLabel(): String = when (this) {
-    is CompatIssue.WrongVersion -> "Switch $depName to ${FabricVersions.describe(alternatives)}"
-    is CompatIssue.Missing -> "Install $depId"
-    is CompatIssue.WrongGame, is CompatIssue.Breaks -> "Disable $modName"
+    is CompatIssue.WrongVersion -> tr("Switch $depName to ${describeVersions(alternatives)}", "将 $depName 切换到 ${describeVersions(alternatives)}")
+    is CompatIssue.Missing -> tr("Install $depId", "安装 $depId")
+    is CompatIssue.WrongGame, is CompatIssue.Breaks -> tr("Disable $modName", "禁用 $modName")
 }
 
 @Composable
@@ -399,15 +427,15 @@ private fun ContentRow(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(item.title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 item.versionNumber?.let { Tag(it) }
-                if (item.projectId == null) Tag("Not from Modrinth")
-                if (!item.enabled) Tag("Disabled")
+                if (item.projectId == null) Tag(tr("Not from Modrinth", "非 Modrinth 来源"))
+                if (!item.enabled) Tag(tr("Disabled", "已禁用"))
             }
             Text(item.currentName, style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             update?.let { u ->
                 if (u.heldBack == null) {
-                    Text("Update available: ${u.version.versionNumber}", style = MaterialTheme.typography.labelSmall, color = cs.primary)
+                    Text(tr("Update available: ${u.version.versionNumber}", "有可用更新：${u.version.versionNumber}"), style = MaterialTheme.typography.labelSmall, color = cs.primary)
                 } else {
-                    Text("Newer ${u.version.versionNumber} held back: ${u.heldBack}", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
+                    Text(tr("Newer ${u.version.versionNumber} held back: ${u.heldBack}", "暂不更新到 ${u.version.versionNumber}：${u.heldBack}"), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
                 }
             }
         }
@@ -416,22 +444,22 @@ private fun ContentRow(
             CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
             Spacer(Modifier.width(10.dp))
         } else if (update != null && update.heldBack == null) {
-            FilledTonalButton(onClick = { onUpdate(update) }, shape = MaterialTheme.shapes.small, contentPadding = PaddingValues(horizontal = 14.dp)) { Text("Update") }
+            FilledTonalButton(onClick = { onUpdate(update) }, shape = MaterialTheme.shapes.small, contentPadding = PaddingValues(horizontal = 14.dp)) { Text(tr("Update", "更新")) }
             Spacer(Modifier.width(6.dp))
         }
         Switch(checked = item.enabled, onCheckedChange = onToggle, enabled = !busy, modifier = Modifier.scale(0.75f))
         Box {
-            IconButton(onClick = { menu = true }, enabled = !busy) { Icon(Icons.Rounded.MoreVert, "More") }
+            IconButton(onClick = { menu = true }, enabled = !busy) { Icon(Icons.Rounded.MoreVert, tr("More", "更多")) }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 if (item.projectId != null) {
                     DropdownMenuItem(
-                        text = { Text("Change version…") },
+                        text = { Text(tr("Change version…", "切换版本…")) },
                         leadingIcon = { Icon(Icons.Rounded.History, null) },
                         onClick = { menu = false; onChangeVersion() },
                     )
                 }
                 DropdownMenuItem(
-                    text = { Text("Remove", color = cs.error) },
+                    text = { Text(tr("Remove", "移除"), color = cs.error) },
                     leadingIcon = { Icon(Icons.Rounded.Delete, null, tint = cs.error) },
                     onClick = { menu = false; onRemove() },
                 )
@@ -444,13 +472,15 @@ private fun ContentRow(
 private fun EmptyTab(kind: ContentKind, instance: Instance, onBrowse: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     Column(Modifier.fillMaxWidth().padding(top = 40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("No ${kind.label.lowercase()} in ${instance.name} yet", style = MaterialTheme.typography.titleSmall)
+        Text(tr("No ${kind.label.lowercase()} in ${instance.name} yet", "${instance.name} 中还没有${kind.label}"), style = MaterialTheme.typography.titleSmall)
         Spacer(Modifier.height(6.dp))
-        val note = if (kind == ContentKind.MOD && instance.loader == ModLoader.VANILLA) "Vanilla instances can't load mods." else "Find some in the Mod Browser."
+        val note = if (kind == ContentKind.MOD && instance.loader == ModLoader.VANILLA) {
+            tr("Vanilla instances can't load mods.", "原版实例无法加载模组。")
+        } else tr("Find some in the Mod Browser.", "可以去模组下载页面找一些。")
         Text(note, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
         if (!(kind == ContentKind.MOD && instance.loader == ModLoader.VANILLA)) {
             Spacer(Modifier.height(12.dp))
-            OutlinedButton(onClick = onBrowse) { Text("Browse ${kind.label.lowercase()}") }
+            OutlinedButton(onClick = onBrowse) { Text(tr("Browse ${kind.label.lowercase()}", "浏览${kind.label}")) }
         }
     }
 }
@@ -461,22 +491,25 @@ private fun RemoveDialog(item: ContentItem, all: List<ContentItem>, onDismiss: (
     val dependents = Compatibility.requirementsOn(item.key, entries).map { it.first.displayName }.distinct()
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Remove ${item.title}?") },
+        title = { Text(tr("Remove ${item.title}?", "移除 ${item.title}？")) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("This deletes ${item.currentName} from the instance.")
+                Text(tr("This deletes ${item.currentName} from the instance.", "这将从实例中删除 ${item.currentName}。"))
                 if (dependents.isNotEmpty()) {
                     Text(
-                        "${dependents.joinToString()} ${if (dependents.size == 1) "needs" else "need"} this mod and won't start without it.",
+                        tr(
+                            "${dependents.joinToString()} ${if (dependents.size == 1) "needs" else "need"} this mod and won't start without it.",
+                            "${dependents.joinToString("、")} 以此模组为前置，移除后将无法启动。",
+                        ),
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
             }
         },
         confirmButton = {
-            Button(onClick = onConfirm, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) { Text("Remove") }
+            Button(onClick = onConfirm, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) { Text(tr("Remove", "移除")) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(tr("Cancel", "取消")) } },
     )
 }
 
@@ -501,19 +534,22 @@ private fun ChangeVersionDialog(
     }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("${item.title} versions") },
+        title = { Text(tr("${item.title} versions", "${item.title} 的版本")) },
         text = {
             Column(Modifier.widthIn(min = 420.dp)) {
                 Text(
-                    "Showing versions for ${instance.loader.displayName} ${instance.gameVersion}.",
+                    tr(
+                        "Showing versions for ${instance.loader.displayName} ${instance.gameVersion}.",
+                        "正在显示适用于 ${instance.loader.displayName} ${instance.gameVersion} 的版本。",
+                    ),
                     style = MaterialTheme.typography.labelMedium,
                     color = cs.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(8.dp))
                 when {
-                    error != null -> Text("Couldn't load versions: $error", color = cs.error)
+                    error != null -> Text(tr("Couldn't load versions: $error", "无法加载版本列表：$error"), color = cs.error)
                     versions == null -> CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                    versions!!.isEmpty() -> Text("Modrinth has no other versions for this instance.", color = cs.onSurfaceVariant)
+                    versions!!.isEmpty() -> Text(tr("Modrinth has no other versions for this instance.", "Modrinth 上没有适用于该实例的其他版本。"), color = cs.onSurfaceVariant)
                     else -> LazyColumn(Modifier.heightIn(max = 360.dp)) {
                         items(versions!!, key = { it.id }) { v ->
                             val blocker = state.content.blockingRequirement(item, v, all, instance.gameVersion)
@@ -525,16 +561,21 @@ private fun ChangeVersionDialog(
                                 Column(Modifier.weight(1f)) {
                                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                                         Text(v.versionNumber, style = MaterialTheme.typography.bodyMedium)
-                                        if (v.id == item.versionId) Tag("Installed", accent = true)
+                                        if (v.id == item.versionId) Tag(tr("Installed", "已安装"), accent = true)
+                                    }
+                                    val typeLabel = when (v.versionType) {
+                                        dev.lumen.launcher.modrinth.VersionType.RELEASE -> tr("release", "正式版")
+                                        dev.lumen.launcher.modrinth.VersionType.BETA -> tr("beta", "测试版")
+                                        dev.lumen.launcher.modrinth.VersionType.ALPHA -> tr("alpha", "早期测试版")
                                     }
                                     Text(
-                                        "${v.versionType.name.lowercase()} · ${v.datePublished.take(10)}",
+                                        "$typeLabel · ${v.datePublished.take(10)}",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = cs.onSurfaceVariant,
                                     )
                                     blocker?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = cs.error) }
                                     if (v.versionType != dev.lumen.launcher.modrinth.VersionType.RELEASE) {
-                                        Text("Pre-release: may be unstable", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
+                                        Text(tr("Pre-release: may be unstable", "预发布版本：可能不稳定"), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
                                     }
                                 }
                             }
@@ -545,8 +586,8 @@ private fun ChangeVersionDialog(
         },
         confirmButton = {
             val pick = versions?.firstOrNull { it.id == chosen }
-            Button(onClick = { pick?.let(onConfirm) }, enabled = pick != null && pick.id != item.versionId) { Text("Switch") }
+            Button(onClick = { pick?.let(onConfirm) }, enabled = pick != null && pick.id != item.versionId) { Text(tr("Switch", "切换")) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(tr("Cancel", "取消")) } },
     )
 }

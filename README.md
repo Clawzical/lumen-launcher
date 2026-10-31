@@ -2,6 +2,10 @@
 
 A lightweight Minecraft launcher: Kotlin, Compose for Desktop, Ktor (CIO) and coroutines.
 
+- **Java Edition:** vanilla, Fabric, Quilt and NeoForge, with a Microsoft account or **offline** under any player name.
+- **Bedrock Edition (Windows):** finds the Store install and starts it from the Bedrock tab.
+- **English and 中文**, switchable in Settings; light or dark theme; your own background picture.
+
 ## Run
 
 ```bash
@@ -23,7 +27,7 @@ Requires JDK 21. If you fork Lumen, change the User-Agent in `AppState.kt` to yo
 
 ```
 ┌──────────────────────────── :app (Compose Desktop) ─────────────────────────────┐
-│  Main.kt → LumenTheme → LauncherShell (Sidebar + AnimatedContent screens)       │
+│  Main.kt → LumenTheme → LauncherShell (title-bar tabs + AnimatedContent screens)│
 │  AppState: service graph + UI state; intents launch coroutines                  │
 └───────────────┬──────────────────────────────┬──────────────────────────────────┘
                 │                              │
@@ -59,7 +63,9 @@ lumen-launcher/
 │  └─ ModInstaller.kt
 └─ app/src/main/kotlin/dev/lumen/launcher/
    ├─ Main.kt · AppState.kt
-   └─ ui/{Shell.kt, DashboardScreen.kt, InstancesScreen.kt, Components.kt, theme/Theme.kt}
+   ├─ bedrock/BedrockLauncher.kt
+   └─ ui/{Shell.kt, LaunchScreen.kt, InstancesScreen.kt, I18n.kt, Components.kt,
+          bedrock/, settings/, theme/Theme.kt, window/}
 ```
 
 ## Performance decisions
@@ -73,8 +79,10 @@ lumen-launcher/
 
 ## Window and branding
 
-- **Logo:** an isometric block with a spark of light on a green-to-teal tile. It's defined once as shape data in `ui/brand/Logo.kt`. Compose draws it in the app and for the window/taskbar icon. Running `./gradlew :app:generateIcons` renders the same shapes into `app/icons/lumen.ico` (16 to 256 px) and `lumen.png`, which the installers use. macOS needs a `.icns` file, which isn't generated yet.
-- **Custom title bar:** the window draws its own dark title bar instead of the OS's white one (`ui/window/`), so it needs to replace things the OS normally provides:
+- **Layout:** a blue title bar carries the logo, the section tabs (Launch, Instances, Download, Bedrock, Settings) and the window buttons. The Launch tab has a frosted account panel on the left and the background on the right.
+- **Language and look:** every string is written as `tr("English", "中文")` at its call site (`ui/I18n.kt`). Language, theme, background picture (with dim and blur) and the offline name live in `%APPDATA%\Lumen\settings.json`; a chosen picture is copied into `%APPDATA%\Lumen\background\`.
+- **Logo:** an isometric block with a spark of light on a blue tile. It's defined once as shape data in `ui/brand/Logo.kt`. Compose draws it in the app and for the window/taskbar icon. Running `./gradlew :app:generateIcons` renders the same shapes into `app/icons/lumen.ico` (16 to 256 px) and `lumen.png`, which the installers use. macOS needs a `.icns` file, which isn't generated yet.
+- **Custom title bar:** the window draws its own title bar instead of the OS's white one (`ui/window/`), so it needs to replace things the OS normally provides:
   - drag the bar to move the window, and double-click it to maximize or restore;
   - drag to the top of the screen to maximize, and drag a maximized window to restore it;
   - resize from any edge or corner;
@@ -108,7 +116,14 @@ What is stored where:
 - **Minecraft token:** kept in memory and reused for about 24 hours, then silently refreshed. Microsoft returns a new refresh token each time, and it's saved.
 - **At launch:** the access token is appended to the command line after the `@argfile`, so it never appears in `launch-args.txt`.
 
-Without a signed-in account, Play launches in **offline mode** (singleplayer and LAN only). With an account whose session has expired, Play stops and opens the sign-in dialog instead of silently going offline.
+The Launch tab switches between **Microsoft** and **Offline**:
+
+- **Offline** launches under the player name you type (3–16 letters, digits or `_`, like vanilla) with a stable offline UUID. It works in singleplayer, LAN and offline-mode servers.
+- **Microsoft** needs a signed-in account. If there's none, or its session has expired, Launch opens the sign-in dialog instead of quietly going offline.
+
+## Bedrock Edition
+
+The Bedrock tab finds Minecraft for Windows and Minecraft Preview with `Get-AppxPackage`, starts them through `shell:AppsFolder` (the same way the Start menu does), and opens their data folder (`%APPDATA%\Minecraft Bedrock` on current builds, the older UWP `LocalState` folder otherwise). If an edition isn't installed, it links to its Microsoft Store page. Lumen doesn't install, patch or unlock Bedrock: it plays offline on its own once the Store licence is on the PC.
 
 ### One-time setup: your own Azure app
 
@@ -127,7 +142,7 @@ Lumen maps Microsoft's and Xbox's error codes to plain-language messages. For ex
 
 ## Managing an instance's content
 
-Click an instance (or **Manage** on the dashboard) to see its mods, resource packs and shaders:
+Click an instance (or **Instance settings** on the Launch tab) to see its mods, resource packs and shaders:
 
 - **Problems before you launch.** For Fabric and Quilt instances, Lumen reads each mod's `fabric.mod.json`, including mods bundled inside other mods, and runs the same dependency check Fabric does at startup. Wrong versions, missing dependencies, the wrong Minecraft version and declared incompatibilities each come with a one-click fix: switch to a version that fits, install the missing mod, or disable the offending one. Fixes that pick a version are double-checked against the downloaded jar's own version.
 - **Enable or disable** a file by renaming it to `.disabled`. **Remove** warns when another mod depends on the file.

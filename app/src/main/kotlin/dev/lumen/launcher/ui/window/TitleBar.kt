@@ -43,36 +43,85 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.clip
+import dev.lumen.launcher.Screen
 import dev.lumen.launcher.ui.brand.LumenLogo
+import dev.lumen.launcher.ui.theme.LocalChrome
+import dev.lumen.launcher.ui.tr
 import java.awt.Cursor
 
-val TitleBarHeight = 36.dp
+val TitleBarHeight = 48.dp
 
 /**
- * The app's own title bar. The left part continues the sidebar (logo + name), the rest is empty
- * drag space, and the caption buttons sit on the right like native Windows ones.
+ * The app's own title bar and main navigation: logo and name on the left, the section tabs as
+ * pills in the middle, caption buttons on the right like native Windows ones. Everything that
+ * isn't a button drags the window.
  */
 @Composable
-fun TitleBar(chrome: WindowChrome, sidebarWidth: Dp, onClose: () -> Unit) {
-    val cs = MaterialTheme.colorScheme
-    Row(Modifier.fillMaxWidth().height(TitleBarHeight)) {
+fun TitleBar(chrome: WindowChrome, current: Screen, onSelect: (Screen) -> Unit, onClose: () -> Unit) {
+    val colors = LocalChrome.current
+    Row(Modifier.fillMaxWidth().height(TitleBarHeight).background(colors.titleBar)) {
         Row(
-            Modifier.width(sidebarWidth).fillMaxHeight().background(cs.surface).moveArea(chrome).padding(start = 20.dp),
+            Modifier.fillMaxHeight().moveArea(chrome).padding(start = 16.dp, end = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            LumenLogo(20.dp)
+            LumenLogo(24.dp)
             Spacer(Modifier.width(10.dp))
-            Text("Lumen", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text("Lumen", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = colors.onTitleBar)
         }
-        Box(Modifier.width(1.dp).fillMaxHeight().background(cs.outline))
-        Box(Modifier.weight(1f).fillMaxHeight().moveArea(chrome))
-        CaptionButton(onClick = chrome::minimize, description = "Minimize") { color -> minimizeGlyph(color) }
-        CaptionButton(onClick = chrome::toggleMaximize, description = if (chrome.isMaximized) "Restore" else "Maximize") { color ->
+        Box(Modifier.weight(1f).fillMaxHeight().moveArea(chrome), contentAlignment = Alignment.Center) {
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Screen.entries.forEach { screen ->
+                    TabPill(screen, selected = screen == current, onClick = { onSelect(screen) })
+                }
+            }
+        }
+        val captionHover = colors.onTitleBar.copy(alpha = 0.16f)
+        CaptionButton(onClick = chrome::minimize, description = tr("Minimize", "最小化"), hoverBackground = captionHover) { color -> minimizeGlyph(color) }
+        CaptionButton(
+            onClick = chrome::toggleMaximize,
+            description = if (chrome.isMaximized) tr("Restore", "还原") else tr("Maximize", "最大化"),
+            hoverBackground = captionHover,
+        ) { color ->
             if (chrome.isMaximized) restoreGlyph(color) else maximizeGlyph(color)
         }
-        CaptionButton(onClick = onClose, description = "Close", hoverBackground = Color(0xFFE81123), hoverContent = Color.White) { color ->
+        CaptionButton(onClick = onClose, description = tr("Close", "关闭"), hoverBackground = Color(0xFFE81123)) { color ->
             closeGlyph(color)
         }
+    }
+}
+
+@Composable
+private fun TabPill(screen: Screen, selected: Boolean, onClick: () -> Unit) {
+    val colors = LocalChrome.current
+    val interaction = remember { MutableInteractionSource() }
+    val hovered by interaction.collectIsHoveredAsState()
+    val bg by animateColorAsState(
+        when {
+            selected -> colors.tabSelected
+            hovered -> colors.onTitleBar.copy(alpha = 0.14f)
+            else -> Color.Transparent
+        },
+        tween(160),
+        label = "tabBg",
+    )
+    val fg by animateColorAsState(if (selected) colors.onTabSelected else colors.onTitleBar, tween(160), label = "tabFg")
+    Row(
+        Modifier.height(30.dp)
+            .clip(RoundedCornerShape(50))
+            .background(bg)
+            .hoverable(interaction)
+            .pointerHoverIcon(PointerIcon.Hand)
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(screen.icon, contentDescription = null, tint = fg, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(tr(screen.en, screen.zh), color = fg, style = MaterialTheme.typography.labelLarge)
     }
 }
 
@@ -103,14 +152,13 @@ private fun Modifier.moveArea(chrome: WindowChrome): Modifier = pointerInput(chr
 private fun CaptionButton(
     onClick: () -> Unit,
     description: String,
-    hoverBackground: Color = MaterialTheme.colorScheme.surfaceVariant,
-    hoverContent: Color = MaterialTheme.colorScheme.onSurface,
+    hoverBackground: Color,
     glyph: DrawScope.(Color) -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
     val bg by animateColorAsState(if (hovered) hoverBackground else Color.Transparent, tween(90), label = "captionBg")
-    val fg by animateColorAsState(if (hovered) hoverContent else MaterialTheme.colorScheme.onSurfaceVariant, tween(90), label = "captionFg")
+    val fg = LocalChrome.current.onTitleBar
     Box(
         Modifier.width(46.dp).fillMaxHeight()
             .background(bg)

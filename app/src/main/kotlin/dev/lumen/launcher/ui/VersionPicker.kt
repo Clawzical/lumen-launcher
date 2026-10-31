@@ -63,16 +63,18 @@ fun VersionPicker(
                     filtering = true
                     expanded = true
                 },
-                label = { Text("Minecraft version") },
+                label = { Text(tr("Minecraft version", "Minecraft 版本")) },
                 singleLine = true,
                 isError = !isKnown,
                 supportingText = {
                     Text(
                         when {
-                            manifest == null -> "Couldn't reach Mojang — type a version manually"
-                            !isKnown -> "Not a known Minecraft version"
-                            value == manifest.latest.release -> "Latest release"
-                            else -> manifest.versions.firstOrNull { it.id == value }?.let { "Released ${it.releaseDate}" } ?: ""
+                            manifest == null -> tr("Couldn't reach Mojang — type a version manually", "无法连接到 Mojang，请手动输入版本号")
+                            !isKnown -> tr("Not a known Minecraft version", "不是已知的 Minecraft 版本")
+                            value == manifest.latest.release -> tr("Latest release", "最新正式版")
+                            else -> manifest.versions.firstOrNull { it.id == value }?.let {
+                                tr("Released ${it.releaseDate}", "发布于 ${it.releaseDate}")
+                            } ?: ""
                         },
                     )
                 },
@@ -89,8 +91,15 @@ fun VersionPicker(
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(v.id, Modifier.weight(1f))
-                                if (v.id == manifest?.latest?.release) Tag("latest", accent = true)
-                                else if (!v.isRelease) Tag(v.type.replace('_', ' '))
+                                if (v.id == manifest?.latest?.release) Tag(tr("latest", "最新"), accent = true)
+                                else if (!v.isRelease) Tag(
+                                    when (v.type) {
+                                        "snapshot" -> tr("snapshot", "快照")
+                                        "old_beta" -> tr("old beta", "远古 Beta")
+                                        "old_alpha" -> tr("old alpha", "远古 Alpha")
+                                        else -> v.type.replace('_', ' ')
+                                    },
+                                )
                             }
                         },
                         onClick = {
@@ -106,7 +115,7 @@ fun VersionPicker(
         if (manifest != null) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(checked = showSnapshots, onCheckedChange = { showSnapshots = it })
-                Text("Show snapshots", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(tr("Show snapshots", "显示快照版"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

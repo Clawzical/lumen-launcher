@@ -15,15 +15,15 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * The Lumen mark: an isometric block (Minecraft) with a spark of light (Lumen) on a green→teal tile.
+ * The Lumen mark: an isometric block (Minecraft) with a spark of light (Lumen) on a blue tile.
  * Geometry lives here once, in a 64×64 grid, and is drawn both by Compose (in-app, window icon)
  * and by Java2D (`IconExport`, for the .ico/.png installer icons) so they can never drift apart.
  */
 object LogoGeometry {
     const val SIZE = 64f
     const val TILE_RADIUS = 15f
-    const val TILE_START = 0xFF2BD48C // top-left
-    const val TILE_END = 0xFF138A7A // bottom-right
+    const val TILE_START = 0xFF3D9BFF // top-left
+    const val TILE_END = 0xFF1A56CC // bottom-right
 
     data class Face(val points: List<Pair<Float, Float>>, val argb: Long)
 
@@ -37,13 +37,13 @@ object LogoGeometry {
 
     /** Whole block outline, filled first so anti-aliased seams between faces never show the tile through. */
     val silhouette = listOf(top, upperRight, lowerRight, bottom, lowerLeft, upperLeft)
-    const val SILHOUETTE_ARGB = 0xFFCDF6E3
+    const val SILHOUETTE_ARGB = 0xFFCFE3FF
 
     /** Lit from the top-left: brightest top, softer left, coolest right. */
     val faces = listOf(
         Face(listOf(top, upperRight, center, upperLeft), 0xFFFFFFFF),
-        Face(listOf(upperLeft, center, bottom, lowerLeft), 0xFFE3FBEF),
-        Face(listOf(center, upperRight, lowerRight, bottom), 0xFFB4EFD5),
+        Face(listOf(upperLeft, center, bottom, lowerLeft), 0xFFE6F1FF),
+        Face(listOf(center, upperRight, lowerRight, bottom), 0xFFB9D6FF),
     )
 
     /** Four-point spark above the block's right shoulder. */
