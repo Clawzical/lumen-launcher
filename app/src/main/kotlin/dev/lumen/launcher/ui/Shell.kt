@@ -8,7 +8,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -21,23 +20,22 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.toComposeImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import dev.lumen.launcher.AppState
+import dev.lumen.launcher.LaunchPhase
 import dev.lumen.launcher.Screen
+import dev.lumen.launcher.core.settings.BackgroundFit
 import dev.lumen.launcher.core.settings.LauncherSettings
 import dev.lumen.launcher.ui.account.SignInDialog
 import dev.lumen.launcher.ui.bedrock.BedrockScreen
@@ -48,10 +46,7 @@ import dev.lumen.launcher.ui.theme.LocalChrome
 import dev.lumen.launcher.ui.window.ResizeHandles
 import dev.lumen.launcher.ui.window.TitleBar
 import dev.lumen.launcher.ui.window.WindowChrome
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
-import java.io.File
 
 @Composable
 fun LauncherShell(state: AppState, chrome: WindowChrome, onClose: () -> Unit) {
@@ -74,8 +69,10 @@ fun LauncherShell(state: AppState, chrome: WindowChrome, onClose: () -> Unit) {
                     },
                     onClose = onClose,
                 )
+                val background = rememberBackgroundPicture(settings.backgroundPath)
+                background.paused = state.launchPhases.values.any { it == LaunchPhase.Running }
                 Box(Modifier.weight(1f).fillMaxWidth()) {
-                    PageBackground(settings)
+                    PageBackground(background, settings)
                     AnimatedContent(
                         targetState = state.screen,
                         transitionSpec = {
@@ -96,7 +93,7 @@ fun LauncherShell(state: AppState, chrome: WindowChrome, onClose: () -> Unit) {
                             }
                             Screen.ModBrowser -> ModBrowserScreen(state, instances)
                             Screen.Bedrock -> BedrockScreen(state)
-                            Screen.Settings -> SettingsScreen(state)
+                            Screen.Settings -> CompositionLocalProvider(LocalBackground provides background) { SettingsScreen(state) }
                         }
                     }
                     StatusToast(
@@ -113,36 +110,26 @@ fun LauncherShell(state: AppState, chrome: WindowChrome, onClose: () -> Unit) {
 }
 
 /**
- * The user's own picture (cropped to fill, optionally blurred, dimmed toward the theme colour so
- * text stays readable) or the theme's soft gradient when none is set or the file is gone.
+ * The user's own picture or GIF (cropped to fill, optionally blurred, dimmed toward the theme
+ * colour so text stays readable) or the theme's soft gradient when none is set or the file is gone.
  */
 @Composable
-private fun PageBackground(settings: LauncherSettings) {
-    val image = rememberBackgroundImage(settings.backgroundPath)
-    if (image == null) {
+private fun PageBackground(picture: BackgroundPicture, settings: LauncherSettings) {
+    // Derived, so a new animation frame redraws the canvas without recomposing this.
+    val hasImage by remember(picture) { derivedStateOf { picture.image != null } }
+    if (!hasImage) {
         Box(Modifier.fillMaxSize().background(LocalChrome.current.pageBackground))
         return
     }
-    Image(
-        image,
-        contentDescription = null,
-        contentScale = ContentScale.Crop,
-        modifier = Modifier.fillMaxSize().then(if (settings.backgroundBlur > 0f) Modifier.blur((settings.backgroundBlur * 24).dp) else Modifier),
-    )
-    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background.copy(alpha = settings.backgroundDim.coerceIn(0f, 1f))))
-}
-
-@Composable
-fun rememberBackgroundImage(path: String?): ImageBitmap? {
-    val image by produceState<ImageBitmap?>(null, path) {
-        value = null
-        value = path?.let {
-            withContext(Dispatchers.IO) {
-                runCatching { org.jetbrains.skia.Image.makeFromEncoded(File(it).readBytes()).toComposeImageBitmap() }.getOrNull()
-            }
-        }
+    val blur = if (settings.backgroundBlur > 0f) Modifier.blur((settings.backgroundBlur * 24).dp) else Modifier
+    if (settings.backgroundFit == BackgroundFit.FIT) {
+        // The same frame, heavily blurred, fills the sides around the whole picture.
+        BackgroundCanvas(picture, Modifier.fillMaxSize().blur(40.dp))
+        BackgroundCanvas(picture, Modifier.fillMaxSize().then(blur), fit = true)
+    } else {
+        BackgroundCanvas(picture, Modifier.fillMaxSize().then(blur), focus = settings.backgroundFocus)
     }
-    return image
+    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background.copy(alpha = settings.backgroundDim.coerceIn(0f, 1f))))
 }
 
 @Composable

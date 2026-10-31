@@ -81,6 +81,7 @@ lumen-launcher/
 
 - **Layout:** a blue title bar carries the logo, the section tabs (Launch, Instances, Download, Bedrock, Settings) and the window buttons. The Launch tab has a frosted account panel on the left and the background on the right.
 - **Language and look:** every string is written as `tr("English", "中文")` at its call site (`ui/I18n.kt`). Language, theme, background picture (with dim and blur) and the offline name live in `%APPDATA%\Lumen\settings.json`; a chosen picture is copied into `%APPDATA%\Lumen\background\`.
+- **Animated backgrounds:** GIF and animated WebP play via Skia's codec, one frame at a time (`ui/BackgroundPicture.kt`), so a long animation never sits in memory whole. They pause while the game runs or the window is minimized. **Whole** mode shows a portrait GIF entirely, over a blurred copy of itself.
 - **Logo:** an isometric block with a spark of light on a blue tile. It's defined once as shape data in `ui/brand/Logo.kt`. Compose draws it in the app and for the window/taskbar icon. Running `./gradlew :app:generateIcons` renders the same shapes into `app/icons/lumen.ico` (16 to 256 px) and `lumen.png`, which the installers use. macOS needs a `.icns` file, which isn't generated yet.
 - **Custom title bar:** the window draws its own title bar instead of the OS's white one (`ui/window/`), so it needs to replace things the OS normally provides:
   - drag the bar to move the window, and double-click it to maximize or restore;

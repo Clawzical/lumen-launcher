@@ -21,6 +21,9 @@ import kotlin.io.path.writeText
 /** How Java Edition is launched: with the signed-in Microsoft account, or offline under [LauncherSettings.offlineName]. */
 @Serializable enum class AccountMode { MICROSOFT, OFFLINE }
 
+/** FILL crops the picture to cover the page; FIT shows all of it (portrait GIFs) over a blurred copy. */
+@Serializable enum class BackgroundFit { FILL, FIT }
+
 @Serializable
 data class LauncherSettings(
     val language: Language = Language.EN,
@@ -30,6 +33,9 @@ data class LauncherSettings(
     /** 0 = image as-is, 1 = fully covered by the theme colour. */
     val backgroundDim: Float = 0.25f,
     val backgroundBlur: Float = 0f,
+    val backgroundFit: BackgroundFit = BackgroundFit.FILL,
+    /** Which part of a cropped picture stays visible: 0 = top/left edge, 0.5 = centre, 1 = bottom/right. */
+    val backgroundFocus: Float = 0.5f,
     val accountMode: AccountMode = AccountMode.OFFLINE,
     val offlineName: String = "Player",
 ) {

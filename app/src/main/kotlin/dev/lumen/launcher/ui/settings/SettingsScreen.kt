@@ -1,6 +1,7 @@
 package dev.lumen.launcher.ui.settings
 
-import androidx.compose.foundation.Image
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -36,13 +37,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import dev.lumen.launcher.AppState
 import dev.lumen.launcher.core.settings.Language
+import dev.lumen.launcher.core.settings.BackgroundFit
 import dev.lumen.launcher.core.settings.LauncherSettings
 import dev.lumen.launcher.core.settings.ThemeMode
-import dev.lumen.launcher.ui.rememberBackgroundImage
+import dev.lumen.launcher.ui.BackgroundCanvas
+import dev.lumen.launcher.ui.LocalBackground
 import dev.lumen.launcher.ui.theme.LocalChrome
 import dev.lumen.launcher.ui.tr
 import java.awt.Desktop
@@ -101,7 +103,8 @@ fun SettingsScreen(state: AppState) {
 @Composable
 private fun BackgroundPicker(state: AppState, settings: LauncherSettings) {
     val cs = MaterialTheme.colorScheme
-    val image = rememberBackgroundImage(settings.backgroundPath)
+    val picture = LocalBackground.current
+    val hasImage by remember(picture) { derivedStateOf { picture?.image != null } }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             Modifier.size(192.dp, 108.dp)
@@ -110,8 +113,13 @@ private fun BackgroundPicker(state: AppState, settings: LauncherSettings) {
                 .border(1.dp, cs.outline, MaterialTheme.shapes.medium),
             contentAlignment = Alignment.Center,
         ) {
-            if (image != null) {
-                Image(image, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            if (picture != null && hasImage) {
+                BackgroundCanvas(
+                    picture,
+                    Modifier.fillMaxSize(),
+                    fit = settings.backgroundFit == BackgroundFit.FIT,
+                    focus = settings.backgroundFocus,
+                )
             } else {
                 Icon(Icons.Outlined.Image, null, tint = cs.onSurfaceVariant)
             }
@@ -124,7 +132,7 @@ private fun BackgroundPicker(state: AppState, settings: LauncherSettings) {
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { chooseImage()?.let(state::setBackground) }, shape = MaterialTheme.shapes.medium) {
-                    Text(tr("Choose image…", "选择图片…"))
+                    Text(tr("Choose image or GIF…", "选择图片或 GIF…"))
                 }
                 if (settings.backgroundPath != null) {
                     TextButton(onClick = { state.updateSettings { it.copy(backgroundPath = null) } }) {
@@ -132,9 +140,32 @@ private fun BackgroundPicker(state: AppState, settings: LauncherSettings) {
                     }
                 }
             }
+            Text(
+                tr("Animated GIFs and WebPs play, and pause while the game is running.", "支持动态 GIF / WebP，游戏运行时自动暂停。"),
+                style = MaterialTheme.typography.labelSmall,
+                color = cs.onSurfaceVariant,
+            )
         }
     }
     if (settings.backgroundPath != null) {
+        SettingRow(tr("Show", "显示方式")) {
+            Choice(
+                options = listOf(BackgroundFit.FILL to tr("Fill", "铺满"), BackgroundFit.FIT to tr("Whole", "完整")),
+                selected = settings.backgroundFit,
+                onSelect = { fit -> state.updateSettings { it.copy(backgroundFit = fit) } },
+            )
+        }
+        if (settings.backgroundFit == BackgroundFit.FILL) {
+            // Which part of a cropped picture shows: slide toward the start to keep a tall GIF's face in view.
+            SettingRow(tr("Position", "位置")) {
+                Slider(
+                    value = settings.backgroundFocus,
+                    onValueChange = { v -> state.settings.preview { it.copy(backgroundFocus = v) } },
+                    onValueChangeFinished = { state.updateSettings { it } },
+                    modifier = Modifier.width(260.dp),
+                )
+            }
+        }
         SettingRow(tr("Dim", "遮罩")) {
             Slider(
                 value = settings.backgroundDim,
@@ -154,11 +185,11 @@ private fun BackgroundPicker(state: AppState, settings: LauncherSettings) {
     }
 }
 
-/** Native file picker; the `*.jpg;…` pattern is how Windows' dialog gets a type filter. */
+/** Native file picker for stills and animations (GIF, WebP); the `*.jpg;…` pattern is how Windows' dialog gets a type filter. */
 private fun chooseImage(): File? {
     val dialog = FileDialog(null as Frame?, "Lumen", FileDialog.LOAD)
-    dialog.file = "*.jpg;*.jpeg;*.png;*.webp;*.bmp"
-    dialog.setFilenameFilter { _, name -> name.substringAfterLast('.').lowercase() in setOf("jpg", "jpeg", "png", "webp", "bmp") }
+    dialog.file = "*.jpg;*.jpeg;*.png;*.gif;*.webp;*.bmp"
+    dialog.setFilenameFilter { _, name -> name.substringAfterLast('.').lowercase() in setOf("jpg", "jpeg", "png", "gif", "webp", "bmp") }
     dialog.isVisible = true // modal
     val name = dialog.file ?: return null
     return File(dialog.directory, name).takeIf { it.isFile }

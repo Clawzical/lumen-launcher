@@ -127,7 +127,8 @@ fun LaunchScreen(state: AppState, instances: List<Instance>) {
             Modifier.weight(1f).fillMaxHeight().padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            if (selected != null) InstanceSummary(state, selected)
+            // With their own picture the user wants to see it; the Launch button already names the instance.
+            if (selected != null && settings.backgroundPath == null) InstanceSummary(state, selected)
             Spacer(Modifier.weight(1f))
             if (downloads.isNotEmpty()) {
                 DownloadsPanel(downloads.values.toList(), Modifier.widthIn(max = 520.dp).align(Alignment.End))
