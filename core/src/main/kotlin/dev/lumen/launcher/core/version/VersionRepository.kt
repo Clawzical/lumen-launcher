@@ -1,5 +1,6 @@
 package dev.lumen.launcher.core.version
 
+import dev.lumen.launcher.core.instance.ModLoader
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
@@ -8,7 +9,19 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class VersionManifest(val latest: LatestVersions, val versions: List<GameVersion>)
+data class VersionManifest(val latest: LatestVersions, val versions: List<GameVersion>) {
+    /**
+     * Whether [loader] exists for [versionId]: compared by release time against the loader's
+     * oldest version, which also covers snapshots and the year-based 26.x numbering.
+     * Unknown versions get the benefit of the doubt.
+     */
+    fun supports(loader: ModLoader, versionId: String): Boolean {
+        val oldest = loader.oldestGameVersion ?: return true
+        val version = versions.firstOrNull { it.id == versionId } ?: return true
+        val floor = versions.firstOrNull { it.id == oldest } ?: return true
+        return version.releaseTime >= floor.releaseTime
+    }
+}
 
 @Serializable
 data class LatestVersions(val release: String, val snapshot: String)

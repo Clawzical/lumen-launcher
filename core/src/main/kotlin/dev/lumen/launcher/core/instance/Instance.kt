@@ -5,11 +5,14 @@ import kotlinx.serialization.Serializable
 import java.nio.file.Path
 
 @Serializable
-enum class ModLoader(val displayName: String) {
-    VANILLA("Vanilla"),
-    FABRIC("Fabric"),
-    QUILT("Quilt"),
-    NEOFORGE("NeoForge");
+/** [oldestGameVersion]: the first Minecraft release the loader supports (null = every version). */
+enum class ModLoader(val displayName: String, val oldestGameVersion: String?) {
+    VANILLA("Vanilla", null),
+    FABRIC("Fabric", "1.14"),
+    QUILT("Quilt", "1.14"),
+    // Older Forge exists, but those versions use the pre-1.7.10 asset layouts Lumen doesn't handle yet.
+    FORGE("Forge", "1.7.10"),
+    NEOFORGE("NeoForge", "1.20.1");
 
     /** Identifier used by Modrinth facets / version filters. */
     val apiId: String get() = name.lowercase()

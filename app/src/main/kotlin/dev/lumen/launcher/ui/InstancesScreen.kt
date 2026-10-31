@@ -56,6 +56,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -422,6 +423,10 @@ private fun CreateInstanceDialog(
     var loader by remember { mutableStateOf(template?.loader ?: ModLoader.FABRIC) }
 
     val versionValid = version.isNotBlank() && (manifest == null || manifest.versions.any { it.id == version })
+    val loaderLocked = template != null && template.mods.isNotEmpty() // a template's mods only exist for its loader
+    fun supported(l: ModLoader) = manifest?.supports(l, version) != false
+    // Picking an old version (say 1.8.9) moves a free choice to Vanilla instead of failing at install time.
+    LaunchedEffect(version) { if (!loaderLocked && !supported(loader)) loader = ModLoader.VANILLA }
     val expectedMods = template?.mods?.size ?: 0
     val heapPreview = remember(loader, expectedMods) { JvmOptimizer.recommendHeapMb(expectedMods, loader) }
 
@@ -442,8 +447,7 @@ private fun CreateInstanceDialog(
                     ModLoader.entries.forEach { l ->
                         FilterChip(
                             selected = loader == l,
-                            // A template's mods only exist for its loader, so lock the choice.
-                            enabled = template == null || template.mods.isEmpty() || l == template.loader,
+                            enabled = (!loaderLocked || l == template?.loader) && supported(l),
                             onClick = { loader = l },
                             label = { Text(l.displayName) },
                             colors = FilterChipDefaults.filterChipColors(
@@ -459,6 +463,17 @@ private fun CreateInstanceDialog(
                         )
                     }
                 }
+                val unsupported = ModLoader.entries.filter { !supported(it) }
+                if (unsupported.isNotEmpty()) {
+                    val language = LocalLanguage.current
+                    Text(
+                        unsupported.joinToString("  ·  ") { l ->
+                            tr(language, "${l.displayName} needs ${l.oldestGameVersion}+", "${l.displayName} 需要 ${l.oldestGameVersion} 及以上")
+                        },
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (supported(loader)) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
+                    )
+                }
                 Text(
                     tr(
                         "Memory: ${formatHeap(heapPreview)} to start (auto). It grows as you add mods.",
@@ -470,7 +485,7 @@ private fun CreateInstanceDialog(
             }
         },
         confirmButton = {
-            Button(onClick = { onCreate(name, version, loader) }, enabled = name.isNotBlank() && versionValid) {
+            Button(onClick = { onCreate(name, version, loader) }, enabled = name.isNotBlank() && versionValid && supported(loader)) {
                 Text(if (expectedMods > 0) tr("Create & install", "创建并安装") else tr("Create", "创建"))
             }
         },

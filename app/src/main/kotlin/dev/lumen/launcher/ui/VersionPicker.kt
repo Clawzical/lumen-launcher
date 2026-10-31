@@ -25,7 +25,8 @@ import androidx.compose.ui.unit.dp
 import dev.lumen.launcher.core.version.GameVersion
 import dev.lumen.launcher.core.version.VersionManifest
 
-private const val MAX_RESULTS = 40
+// Every release fits (~100, back to 1.0); snapshots number in the hundreds, so those are capped.
+private const val MAX_WITH_SNAPSHOTS = 200
 
 /**
  * Type-to-filter picker over Mojang's version manifest. Releases only by default; snapshots
@@ -49,7 +50,7 @@ fun VersionPicker(
             .asSequence()
             .filter { showSnapshots || it.isRelease }
             .filter { !filtering || it.id.contains(value.trim(), ignoreCase = true) }
-            .take(MAX_RESULTS)
+            .take(if (showSnapshots) MAX_WITH_SNAPSHOTS else Int.MAX_VALUE)
             .toList()
     }
     val isKnown = manifest == null || manifest.versions.any { it.id == value }

@@ -37,7 +37,7 @@ object JvmOptimizer {
         val (baseMb, perModMb) = when (loader) {
             ModLoader.VANILLA -> 2048 to 0
             ModLoader.FABRIC, ModLoader.QUILT -> 2560 to 20
-            ModLoader.NEOFORGE -> 3584 to 28
+            ModLoader.FORGE, ModLoader.NEOFORGE -> 3584 to 28
         }
         val wanted = min(baseMb + modCount * perModMb, 12_288)
         val ceiling = max(1024L, min(systemMb / 2, systemMb - 3072)).toInt()

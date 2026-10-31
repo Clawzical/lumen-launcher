@@ -2,7 +2,7 @@
 
 A lightweight Minecraft launcher: Kotlin, Compose for Desktop, Ktor (CIO) and coroutines.
 
-- **Java Edition:** vanilla, Fabric, Quilt and NeoForge, with a Microsoft account or **offline** under any player name.
+- **Java Edition:** vanilla (every release back to 1.0), Fabric, Quilt, Forge (1.7.10+) and NeoForge, with a Microsoft account or **offline** under any player name.
 - **Bedrock Edition (Windows):** finds the Store install and starts it from the Bedrock tab.
 - **English and 中文**, switchable in Settings; light or dark theme; your own background picture.
 
@@ -95,13 +95,13 @@ lumen-launcher/
 
 Pressing Play runs `GameInstaller.prepare()` from `:installer`, then `GameLauncher.launch()` from `:launch`:
 
-- **Version files:** Mojang's version JSON, then the loader's JSON on top of it (Fabric/Quilt meta profile, or NeoForge's installer run headlessly with `--install-client`). These are merged along the `inheritsFrom` chain, filtered by OS rules and de-duplicated.
+- **Version files:** Mojang's version JSON, then the loader's JSON on top of it (Fabric/Quilt meta profile; NeoForge's or modern Forge's installer run headlessly with `--install-client` / `--installClient`; for legacy Forge, 1.7.10 to early 1.12.2, Lumen saves the installer's embedded `versionInfo` and unpacks the Forge jar itself, since those installers have no headless mode). These are merged along the `inheritsFrom` chain, filtered by OS rules and de-duplicated.
 - **Game files:** game jar, libraries, natives (flattened into `shared/natives/<id>`), the asset index plus about 4,000 objects, and the log4j config.
 - **Java:** a locally installed JDK with exactly the required major version, otherwise Mojang's own runtime for that component.
 - **JVM arguments:** `JvmOptimizer.plan()` flags come first, then the version's JVM arguments, main class and game arguments. On Java 9+ they are passed as an `@argfile`, which avoids Windows' 32K command-line limit.
 - **Output:** the game's output goes to `<instance>/launch.log`, and the exact arguments are saved to `<instance>/launch-args.txt`.
 
-Tested on Windows with 1.21.1: vanilla, Fabric 0.20.1 (with Sodium, Iris and Lithium), and NeoForge 21.1.264.
+Tested on Windows with 1.21.1: vanilla, Fabric 0.20.1 (with Sodium, Iris and Lithium), and NeoForge 21.1.264. Also 1.8.9: vanilla, and Forge 11.15.1.2318 (Java 8, LaunchWrapper). The loader picker greys out loaders that don't exist for the chosen version (Fabric/Quilt 1.14+, NeoForge 1.20.1+, Forge 1.7.10+).
 
 ## Microsoft accounts (`:auth`)
 
@@ -151,7 +151,7 @@ Click an instance (or **Instance settings** on the Launch tab) to see its mods, 
 - **Change version** lists every compatible version and marks the ones that would break another mod.
 - **Hand-added files** are recognised by hash and added to the instance's record, so they get names, icons and updates too.
 
-NeoForge instances get listing, updates and version changes, but no dependency check yet: NeoForge declares dependencies in `neoforge.mods.toml`, which Lumen doesn't read yet.
+Forge and NeoForge instances get listing, updates and version changes, but no dependency check yet: they declare dependencies in `mods.toml` / `neoforge.mods.toml` (or `mcmod.info` on legacy Forge), which Lumen doesn't read yet.
 
 ## Roadmap (suggested order)
 
