@@ -150,6 +150,7 @@ Click an instance (or **Instance settings** on the Launch tab) to see its mods, 
 - **Updates.** One bulk Modrinth request checks every file by its hash. A stable install is only offered stable updates. An update is held back (with the reason) when another mod needs the current version, or when the new version pins a different version of something you have.
 - **Change version** lists every compatible version and marks the ones that would break another mod.
 - **Hand-added files** are recognised by hash and added to the instance's record, so they get names, icons and updates too.
+- **Change Minecraft version** (up or down) moves the whole instance: one Modrinth request matches every mod to its build for the target version. Mods with no build, mods not from Modrinth, and mods that need one of those are turned off (`.disabled`), not deleted; packs are kept. Worlds, configs and settings stay; current mods (and worlds, by default when going back to an older version) are copied to `backups/` first. The result is shown in Lumen and as a desktop notification.
 
 Forge and NeoForge instances get listing, updates and version changes, but no dependency check yet: they declare dependencies in `mods.toml` / `neoforge.mods.toml` (or `mcmod.info` on legacy Forge), which Lumen doesn't read yet.
 

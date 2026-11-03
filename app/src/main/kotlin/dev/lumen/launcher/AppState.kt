@@ -36,6 +36,10 @@ import dev.lumen.launcher.core.version.VersionRepository
 import dev.lumen.launcher.modrinth.ContentIndexStore
 import dev.lumen.launcher.modrinth.ModInstaller
 import dev.lumen.launcher.modrinth.content.InstanceContentManager
+import dev.lumen.launcher.modrinth.content.MigrationPlan
+import dev.lumen.launcher.modrinth.content.MigrationResult
+import dev.lumen.launcher.modrinth.content.VersionMigrator
+import dev.lumen.launcher.ui.DesktopNotifier
 import dev.lumen.launcher.modrinth.ModrinthClient
 import dev.lumen.launcher.modrinth.ProjectType
 import dev.lumen.launcher.modrinth.SearchHit
@@ -114,6 +118,7 @@ class AppState(private val scope: CoroutineScope) : AutoCloseable {
     private val contentIndex = ContentIndexStore()
     val installer = ModInstaller(modrinth, downloads, contentIndex)
     val content = InstanceContentManager(modrinth, downloads, contentIndex, installer)
+    val migrator = VersionMigrator(modrinth, content, installer)
     private val versions = VersionRepository(http)
     private val gameInstaller = GameInstaller(http, paths, downloads, versions)
     private val gameLauncher = GameLauncher()
@@ -343,6 +348,37 @@ class AppState(private val scope: CoroutineScope) : AutoCloseable {
 
     fun stop(instance: Instance) {
         running[instance.id]?.stop()
+    }
+
+    /**
+     * Moves [instance] to [plan]'s target version: content first (so a failure leaves the
+     * instance on its old, still-working version), then the instance itself. The loader
+     * version is cleared so the next launch picks the right one for the new game version.
+     */
+    suspend fun changeGameVersion(
+        instance: Instance,
+        plan: MigrationPlan,
+        backupWorlds: Boolean,
+        onProgress: (String) -> Unit,
+    ): MigrationResult {
+        check(instance.id !in launchPhases) { t("Stop the game first", "请先关闭游戏") }
+        val migrated = instance.copy(gameVersion = plan.to, loaderVersion = null)
+        val result = migrator.apply(plan, migrated, instances.pathsOf(instance), backupWorlds, onProgress)
+        instances.update(instance.id) { it.copy(gameVersion = plan.to, loaderVersion = null) }
+        contentChanged()
+
+        val off = result.turnedOff
+        val summary = if (off.isEmpty()) {
+            t("${instance.name} is now on ${plan.to}. ${result.switched} switched to their ${plan.to} versions.",
+                "${instance.name} 已切换到 ${plan.to}，${result.switched} 项已换成 ${plan.to} 版本。")
+        } else {
+            val names = off.take(4).joinToString { it.item.title } + if (off.size > 4) " …" else ""
+            t("${instance.name} is now on ${plan.to}. Turned off ${off.size} with no ${plan.to} version: $names",
+                "${instance.name} 已切换到 ${plan.to}。已关闭 ${off.size} 个没有 ${plan.to} 版本的模组：$names")
+        }
+        status = summary
+        DesktopNotifier.notify("Lumen", summary, warning = off.isNotEmpty())
+        return result
     }
 
     fun scanBedrock() {

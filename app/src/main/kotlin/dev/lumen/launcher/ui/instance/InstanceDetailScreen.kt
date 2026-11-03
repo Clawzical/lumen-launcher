@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.FolderOpen
+import androidx.compose.material.icons.rounded.SwapVert
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -105,6 +106,7 @@ fun InstanceDetailScreen(state: AppState, instance: Instance, onBack: () -> Unit
     var tab by remember(instance.id) { mutableStateOf(ContentKind.MOD) }
     var removing by remember { mutableStateOf<ContentItem?>(null) }
     var changing by remember { mutableStateOf<ContentItem?>(null) }
+    var changingGame by remember { mutableStateOf(false) }
     var reload by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(instance.id, reload, state.contentRevision) {
@@ -152,7 +154,7 @@ fun InstanceDetailScreen(state: AppState, instance: Instance, onBack: () -> Unit
     }
 
     Column(Modifier.fillMaxSize().padding(start = 32.dp, end = 32.dp, top = 24.dp)) {
-        Header(state, instance, all, onBack)
+        Header(state, instance, all, onBack, onChangeGameVersion = { changingGame = true })
         Spacer(Modifier.height(16.dp))
 
         if (issues.isNotEmpty()) {
@@ -268,6 +270,14 @@ fun InstanceDetailScreen(state: AppState, instance: Instance, onBack: () -> Unit
             }
         }
     }
+    if (changingGame) {
+        GameVersionDialog(state, instance, all, onDismiss = {
+            changingGame = false
+            updates = emptyMap() // update checks were for the old version
+            checked = false
+            reload++
+        })
+    }
     changing?.let { item ->
         ChangeVersionDialog(state, instance, item, all, onDismiss = { changing = null }) { version ->
             changing = null
@@ -281,7 +291,7 @@ fun InstanceDetailScreen(state: AppState, instance: Instance, onBack: () -> Unit
 }
 
 @Composable
-private fun Header(state: AppState, instance: Instance, items: List<ContentItem>, onBack: () -> Unit) {
+private fun Header(state: AppState, instance: Instance, items: List<ContentItem>, onBack: () -> Unit, onChangeGameVersion: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     val phase = state.launchPhases[instance.id]
     val mods = items.count { it.kind == ContentKind.MOD && it.enabled }
@@ -302,6 +312,13 @@ private fun Header(state: AppState, instance: Instance, items: List<ContentItem>
                 color = cs.onSurfaceVariant,
             )
         }
+        // Not while the game runs: its files are in use.
+        OutlinedButton(onClick = onChangeGameVersion, enabled = phase == null, shape = MaterialTheme.shapes.medium) {
+            Icon(Icons.Rounded.SwapVert, null, Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(tr("Minecraft version", "游戏版本"))
+        }
+        Spacer(Modifier.width(10.dp))
         OutlinedButton(onClick = { state.openFolder(instance) }, shape = MaterialTheme.shapes.medium) {
             Icon(Icons.Rounded.FolderOpen, null, Modifier.size(18.dp))
             Spacer(Modifier.width(6.dp))
